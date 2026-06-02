@@ -21,6 +21,11 @@ export default function LearnPanel() {
   );
   const hasTour = tourSteps.length > 0;
 
+  const openTourStep = (stepIndex: number) => {
+    startTour();
+    setTourStep(stepIndex);
+  };
+
   // State 1: No tour available
   if (!hasTour) {
     return (
@@ -59,15 +64,18 @@ export default function LearnPanel() {
             {t.learnPanel.steps}
           </h3>
           {tourSteps.map((step, i) => (
-            <div
+            <button
               key={step.order}
-              className="flex items-start gap-2 text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle"
+              type="button"
+              onClick={() => openTourStep(i)}
+              className="w-full flex items-start gap-2 text-left text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle hover:border-accent/40 hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-colors"
+              aria-label={`Open tour step ${i + 1}: ${step.title}`}
             >
               <span className="text-accent font-mono shrink-0 mt-0.5">
                 {i + 1}.
               </span>
               <span className="text-text-secondary">{step.title}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
