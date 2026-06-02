@@ -110,8 +110,37 @@ describe("deriveContainers — community fallback", () => {
     expect(containers.length).toBeGreaterThanOrEqual(2);
     for (const c of containers) {
       expect(c.strategy).toBe("community");
-      expect(c.name).toMatch(/^Cluster [A-Z]$/);
+      expect(c.name).not.toMatch(/^Cluster [A-Z]$/);
+      expect(c.name).toContain("n");
     }
+  });
+
+  it("uses child node names instead of opaque Cluster labels", () => {
+    const nodes = [
+      node("bvi", "services/bvi.py"),
+      node("inputs", "services/inputs.py"),
+      node("workflow", "services/workflow.py"),
+      node("preflight", "services/preflight.py"),
+      node("loopholes", "services/loopholes.py"),
+      node("benchmark", "services/benchmark.py"),
+      node("lineage", "services/lineage.py"),
+      node("prompts", "services/prompts.py"),
+    ];
+    nodes[0].name = "BVI source intelligence";
+    nodes[1].name = "Signature input dataset";
+    nodes[2].name = "Signature agentic workflow";
+    nodes[3].name = "Generation preflight";
+    const edges: GraphEdge[] = [
+      { source: "bvi", target: "inputs", type: "related" } as GraphEdge,
+      { source: "inputs", target: "bvi", type: "related" } as GraphEdge,
+      { source: "workflow", target: "preflight", type: "related" } as GraphEdge,
+      { source: "preflight", target: "workflow", type: "related" } as GraphEdge,
+    ];
+
+    const { containers } = deriveContainers(nodes, edges);
+
+    expect(containers.some((container) => container.name.includes("BVI source intelligence"))).toBe(true);
+    expect(containers.some((container) => container.name.includes("Signature agentic"))).toBe(true);
   });
 
   it("falls back when one folder holds > 70%", () => {

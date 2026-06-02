@@ -74,6 +74,26 @@ function groupByFolder(
   return { groups, rooted };
 }
 
+function compactLabel(value: string, maxLength = 44): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function communityName(
+  ids: string[],
+  nodesById: Map<string, GraphNode>,
+  fallback: string,
+): string {
+  const names = ids
+    .map((id) => nodesById.get(id)?.name?.trim())
+    .filter((name): name is string => Boolean(name));
+  const unique = [...new Set(names)];
+  if (unique.length === 0) return fallback;
+  if (unique.length === 1) return compactLabel(unique[0]);
+  return compactLabel(`${compactLabel(unique[0], 24)} / ${compactLabel(unique[1], 24)}`);
+}
+
 function shouldFallbackToCommunity(
   groups: Map<string, string[]>,
   rooted: string[],
@@ -102,6 +122,7 @@ export function deriveContainers(
   let containers: DerivedContainer[];
 
   if (useCommunity) {
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
     const communities = detectCommunities(
       nodes.map((n) => n.id),
       edges,
@@ -117,7 +138,11 @@ export function deriveContainers(
       id: `container:cluster-${cid}`,
       // A-Z for the first 26, then numeric. Avoids `String.fromCharCode(65+i)`
       // wrapping into `[`, `\`, `]` ... once the cluster count exceeds 26.
-      name: i < 26 ? `Cluster ${String.fromCharCode(65 + i)}` : `Cluster ${i + 1}`,
+      name: communityName(
+        ids,
+        nodesById,
+        i < 26 ? `Cluster ${String.fromCharCode(65 + i)}` : `Cluster ${i + 1}`,
+      ),
       nodeIds: ids,
       strategy: "community" as const,
     }));
