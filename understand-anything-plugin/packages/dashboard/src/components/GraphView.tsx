@@ -53,6 +53,7 @@ import {
 import { deriveContainers } from "../utils/containers";
 import type { DerivedContainer } from "../utils/containers";
 import { computeLayerStats } from "../utils/layerStats";
+import { selectTourFitTargetIds } from "../utils/tourFitTargets";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -88,14 +89,19 @@ const NODE_TYPE_TO_CATEGORY: Record<NodeType, NodeCategory> = {
  *
  * We subscribe to React Flow's reactive node list via `useNodes()` so the
  * effect re-runs every time the node set actually changes (Stage 1, Stage
- * 2, expand/collapse). When every highlighted id is present we fit; until
- * then we wait. A 2s fallback timer covers the case where a highlighted
- * id is filtered out and never materialises.
+ * 2, expand/collapse). Tour steps commonly contain one explanatory concept
+ * followed by source references; when the primary node is ready, fit to that
+ * readable anchor instead of waiting for every source reference and zooming
+ * the whole step into an unreadable spread.
  */
-function TourFitView() {
+function TourFitView({
+  nodeToContainer,
+}: {
+  nodeToContainer?: Map<string, string>;
+}) {
   const tourHighlightedNodeIds = useDashboardStore((s) => s.tourHighlightedNodeIds);
   const setTourFitPending = useDashboardStore((s) => s.setTourFitPending);
-  const { fitView, getInternalNode } = useReactFlow();
+  const { fitView, getInternalNode, setCenter } = useReactFlow();
   // Subscribe to React Flow's user-node array so this effect re-fires when
   // the node set changes (e.g. Stage 2 finally lands the highlighted ids
   // after the per-step RAF window already gave up). The RAF poll inside
@@ -115,12 +121,11 @@ function TourFitView() {
     if (targetKey === fittedKeyRef.current) return;
 
     // Poll React Flow's internal lookup directly — `useNodes()` reflects
-    // user-supplied nodes and may not fire on measure completion. Once
-    // every highlighted id has measured dimensions, `fitView({ nodes })`
-    // handles the child→absolute coordinate transform itself, which is
-    // more reliable than recomputing bbox manually.
-    const MAX_FRAMES = 240; // ~4s at 60fps
-    let frame = 0;
+    // user-supplied nodes and may not fire on measure completion. Once the
+    // selected fit target has measured dimensions, `fitView({ nodes })`
+    // handles the child→absolute coordinate transform itself.
+    const MAX_WAIT_MS = 1200;
+    const startedAt = performance.now();
     let cancelled = false;
     let rafId = 0;
     // After we've already shown the fallback for this step, suppress the
@@ -131,28 +136,58 @@ function TourFitView() {
 
     const tick = () => {
       if (cancelled) return;
-      let ready = true;
+      const readyNodeIds = new Set<string>();
       for (const id of tourHighlightedNodeIds) {
         const internal = getInternalNode(id);
-        if (!internal || !internal.measured?.width || !internal.measured?.height) {
-          ready = false;
-          break;
+        if (internal?.measured?.width && internal.measured.height) {
+          readyNodeIds.add(id);
         }
       }
-      if (ready) {
-        fitView({
-          nodes: tourHighlightedNodeIds.map((id) => ({ id })),
-          duration: 500,
-          padding: 0.3,
-          maxZoom: 1.2,
-          minZoom: 0.4,
-        });
+      const fitTargetIds = selectTourFitTargetIds(tourHighlightedNodeIds, readyNodeIds);
+      if (fitTargetIds.length > 0) {
+        if (fitTargetIds.length === 1) {
+          const targetId = fitTargetIds[0];
+          const containerId = nodeToContainer?.get(targetId);
+          if (containerId && containerId !== targetId && getInternalNode(containerId)) {
+            fitView({
+              nodes: [{ id: containerId }],
+              duration: 500,
+              padding: 0.06,
+              maxZoom: 1.1,
+              minZoom: 0.2,
+            });
+          } else {
+            const internal = getInternalNode(targetId);
+            const absolutePosition =
+              (internal as unknown as { internals?: { positionAbsolute?: { x: number; y: number } } })
+                ?.internals?.positionAbsolute ??
+              (internal as unknown as { positionAbsolute?: { x: number; y: number } })?.positionAbsolute ??
+              internal?.position;
+            const width = internal?.measured?.width ?? 0;
+            const height = internal?.measured?.height ?? 0;
+            if (absolutePosition && width > 0 && height > 0) {
+              setCenter(
+                absolutePosition.x + width / 2,
+                absolutePosition.y + height / 2,
+                { zoom: 1, duration: 500 },
+              );
+            }
+          }
+        } else {
+          fitView({
+            nodes: fitTargetIds.map((id) => ({ id })),
+            duration: 500,
+            padding: 0.35,
+            maxZoom: 1.1,
+            minZoom: 0.4,
+          });
+        }
         fittedKeyRef.current = targetKey;
         fallbackKeyRef.current = "";
         setTourFitPending(false);
         return;
       }
-      if (++frame < MAX_FRAMES) {
+      if (performance.now() - startedAt < MAX_WAIT_MS) {
         rafId = requestAnimationFrame(tick);
         return;
       }
@@ -173,7 +208,7 @@ function TourFitView() {
       cancelled = true;
       cancelAnimationFrame(rafId);
     };
-  }, [tourHighlightedNodeIds, nodes, fitView, getInternalNode, setTourFitPending]);
+  }, [tourHighlightedNodeIds, nodes, fitView, getInternalNode, setCenter, setTourFitPending, nodeToContainer]);
 
   return null;
 }
@@ -1350,6 +1385,10 @@ function GraphViewInner() {
 
   useEffect(() => {
     if (!pendingFitRef.current) return;
+    if (tourHighlightedNodeIds.length > 0) {
+      pendingFitRef.current = false;
+      return;
+    }
     if (nodes.length === 0) return;
     pendingFitRef.current = false;
     // One frame so React Flow has positioned the nodes before fit.
@@ -1357,7 +1396,7 @@ function GraphViewInner() {
       fitView({ duration: 400, padding: 0.2 });
     });
     return () => cancelAnimationFrame(raf);
-  }, [nodes, fitView]);
+  }, [nodes, fitView, tourHighlightedNodeIds]);
 
   // Lock viewport onto a container the user just manually expanded so it
   // appears to expand in place rather than getting yanked off-screen by
@@ -1547,7 +1586,7 @@ function GraphViewInner() {
           maskColor="var(--glass-bg)"
           className="!bg-surface !border !border-border-subtle"
         />
-        <TourFitView />
+        <TourFitView nodeToContainer={nodeToContainer} />
         <SelectedNodeFitView />
       </ReactFlow>
       {(layoutStatus === "computing" || tourFitPending) && (
