@@ -98,4 +98,16 @@ describe("tour navigation state", () => {
     expect(useDashboardStore.getState().currentTourStep).toBe(0);
     expect(useDashboardStore.getState().tourHighlightedNodeIds).toEqual(["concept:one"]);
   });
+
+  it("stops the guided tour filter when focusing a node for drill-down", () => {
+    useDashboardStore.getState().setTourStep(1);
+
+    useDashboardStore.getState().setFocusNode("concept:one");
+
+    expect(useDashboardStore.getState().focusNodeId).toBe("concept:one");
+    expect(useDashboardStore.getState().selectedNodeId).toBe("concept:one");
+    expect(useDashboardStore.getState().tourActive).toBe(false);
+    expect(useDashboardStore.getState().currentTourStep).toBe(1);
+    expect(useDashboardStore.getState().tourHighlightedNodeIds).toEqual([]);
+  });
 });

@@ -505,9 +505,15 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     }),
 
   setFocusNode: (nodeId) =>
-    set({
+    set((state) => ({
       focusNodeId: nodeId,
       selectedNodeId: nodeId,
+      // Focus is an explicit drill-down action. If a guided tour is still
+      // active, its evidence-only filter would otherwise keep rendering the
+      // old tour step while the UI says "Showing neighborhood".
+      tourActive: nodeId ? false : state.tourActive,
+      tourHighlightedNodeIds: nodeId ? [] : state.tourHighlightedNodeIds,
+      tourFitPending: nodeId ? false : state.tourFitPending,
       // Focus mode narrows filteredGraphNodes to focus + 1-hop; the
       // surviving containers have a subset of their original children,
       // and the cache must not return positions for filtered-out ids.
@@ -515,7 +521,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       containerSizeMemory: new Map(),
       expandedContainers: new Set(),
       pendingFocusContainer: null,
-    }),
+    })),
   setSearchMode: (mode) => set({ searchMode: mode }),
   setSearchQuery: (query) => {
     const engine = get().searchEngine;
