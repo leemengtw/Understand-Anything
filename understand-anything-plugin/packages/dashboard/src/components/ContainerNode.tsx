@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Handle, Position } from "@xyflow/react";
 import type { NodeProps, Node } from "@xyflow/react";
 import { getLayerColor } from "./LayerLegend";
 
@@ -58,6 +59,12 @@ function ContainerNodeComponent({ data, width, height }: NodeProps<ContainerFlow
         }
       }}
     >
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!bg-transparent !border-0 !opacity-0 !w-2 !h-2"
+      />
+
       <div
         className="flex items-center justify-between font-heading"
         style={{
@@ -91,6 +98,12 @@ function ContainerNodeComponent({ data, width, height }: NodeProps<ContainerFlow
         </span>
         <span style={{ color: "#a39787", fontSize: 11 }}>{data.childCount}</span>
       </div>
+
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!bg-transparent !border-0 !opacity-0 !w-2 !h-2"
+      />
     </div>
   );
 }
