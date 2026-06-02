@@ -43,6 +43,14 @@ function getDirectionalLabel(edgeType: string, isSource: boolean, t: ReturnType<
   return isSource ? labels.forward : labels.backward;
 }
 
+function countByValue(values: string[]): Array<[string, number]> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
 function KnowledgeNodeDetails({ node, graph }: { node: GraphNode; graph: KnowledgeGraph }) {
   const navigateToNode = useDashboardStore((s) => s.navigateToNode);
   const { t } = useI18n();
@@ -274,6 +282,7 @@ export default function NodeInfo() {
 
   const activeGraph = viewMode === "domain" && domainGraph ? domainGraph : graph;
   const node = activeGraph?.nodes.find((n) => n.id === selectedNodeId) ?? null;
+  const [showAllConnections, setShowAllConnections] = useState(false);
 
   // Resolve history node names for the breadcrumb trail
   const historyNodes = nodeHistory.map((id) => {
@@ -301,6 +310,29 @@ export default function NodeInfo() {
   const otherConnections = connections.filter(
     (e) => !(e.type === "contains" && e.source === node.id),
   );
+  const otherConnectionRows = otherConnections
+    .map((edge, index) => {
+      const isSource = edge.source === node.id;
+      const otherId = isSource ? edge.target : edge.source;
+      const otherNode = activeGraph?.nodes.find((n) => n.id === otherId);
+      return {
+        edge,
+        index,
+        isSource,
+        otherId,
+        otherNode,
+        otherType: otherNode?.type ?? "unknown",
+        otherName: otherNode?.name ?? otherId,
+      };
+    })
+    .sort((a, b) =>
+      String(a.edge.type).localeCompare(String(b.edge.type)) ||
+      String(a.otherType).localeCompare(String(b.otherType)) ||
+      String(a.otherName).localeCompare(String(b.otherName)),
+    );
+  const connectionTypeCounts = countByValue(otherConnectionRows.map((row) => row.edge.type));
+  const connectionNodeTypeCounts = countByValue(otherConnectionRows.map((row) => row.otherType));
+  const displayedConnectionRows = showAllConnections ? otherConnectionRows : otherConnectionRows.slice(0, 40);
 
   // Resolve child nodes
   const childNodes = childEdges
@@ -507,31 +539,62 @@ export default function NodeInfo() {
           <h3 className="text-[11px] font-semibold text-gold uppercase tracking-wider mb-2">
             {t.common.connections} ({otherConnections.length})
           </h3>
+          <div className="mb-3 rounded-lg border border-border-subtle bg-elevated/50 p-2">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+              Connection Map
+            </div>
+            <div className="mb-2 flex flex-wrap gap-1">
+              {connectionTypeCounts.map(([label, count]) => (
+                <span
+                  key={label}
+                  className="rounded border border-border-subtle bg-surface/60 px-1.5 py-0.5 text-[10px] text-text-secondary"
+                >
+                  {label}: {count}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {connectionNodeTypeCounts.map(([label, count]) => (
+                <span
+                  key={label}
+                  className="rounded border border-border-subtle bg-surface/60 px-1.5 py-0.5 text-[10px] text-text-muted"
+                >
+                  {label}: {count}
+                </span>
+              ))}
+            </div>
+          </div>
           <div className="space-y-1.5">
-            {otherConnections.map((edge, i) => {
-              const isSource = edge.source === node.id;
-              const otherId = isSource ? edge.target : edge.source;
-              const otherNode = activeGraph?.nodes.find((n) => n.id === otherId);
-              const dirLabel = getDirectionalLabel(edge.type, isSource, t);
-              const arrow = isSource ? "\u2192" : "\u2190";
+            {displayedConnectionRows.map((row) => {
+              const dirLabel = getDirectionalLabel(row.edge.type, row.isSource, t);
+              const arrow = row.isSource ? "\u2192" : "\u2190";
 
               return (
                 <div
-                  key={i}
+                  key={`${row.edge.source}-${row.edge.target}-${row.edge.type}-${row.index}`}
                   className="text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle flex items-center gap-2 cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-colors"
                   onClick={() => {
-                    navigateToNode(otherId);
+                    navigateToNode(row.otherId);
                   }}
                 >
                   <span className="text-gold font-mono">{arrow}</span>
                   <span className="text-text-muted">{dirLabel}</span>
                   <span className="text-text-primary truncate">
-                    {otherNode?.name ?? otherId}
+                    {row.otherName}
                   </span>
                 </div>
               );
             })}
           </div>
+          {otherConnectionRows.length > displayedConnectionRows.length && (
+            <button
+              type="button"
+              onClick={() => setShowAllConnections(true)}
+              className="mt-2 w-full rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-gold/40 hover:text-text-secondary"
+            >
+              Show all {otherConnectionRows.length} connections
+            </button>
+          )}
         </div>
       )}
     </div>

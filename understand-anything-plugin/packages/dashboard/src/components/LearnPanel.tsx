@@ -2,9 +2,64 @@ import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../contexts/I18nContext";
+import type { GraphNode } from "@understand-anything/core/types";
+
+type TourReference = {
+  nodeId: string;
+  node: GraphNode | undefined;
+  label: string;
+  filePath: string | null;
+  evidenceKind: string;
+};
+
+function evidenceKindForNode(node: GraphNode | undefined): string {
+  if (!node) return "Other";
+  const path = node.filePath ?? "";
+  if (path.startsWith("prompts/")) return "Prompt";
+  if (path.startsWith("configs/")) return "Config";
+  if (path.startsWith("docs/") || path.endsWith(".md")) return "Doc";
+  if (path.startsWith("backend/tests/") || path.startsWith("tests/") || path.includes("/tests/")) return "Test";
+  if (path.startsWith("backend/scripts/") || path.startsWith("scripts/") || path.includes("/scripts/")) return "Script";
+  if (path.startsWith("backend/")) return "Backend";
+  if (path.startsWith("frontend/")) return "Frontend";
+  if (path.startsWith("reference_assets/")) return "Reference";
+  if (node.type === "concept") return "Concept";
+  if (node.type === "config") return "Config";
+  if (node.type === "document") return "Doc";
+  return node.type.charAt(0).toUpperCase() + node.type.slice(1);
+}
+
+function buildTourReferences(nodeIds: string[], nodesById: Map<string, GraphNode>): TourReference[] {
+  return nodeIds.map((nodeId) => {
+    const node = nodesById.get(nodeId);
+    return {
+      nodeId,
+      node,
+      label: node?.name ?? nodeId,
+      filePath: node?.filePath ?? null,
+      evidenceKind: evidenceKindForNode(node),
+    };
+  });
+}
+
+function groupTourReferences(references: TourReference[]): Array<[string, TourReference[]]> {
+  const priority = ["Concept", "Backend", "Prompt", "Config", "Script", "Test", "Doc", "Frontend", "Reference", "Other"];
+  const groups = new Map<string, TourReference[]>();
+  for (const ref of references) {
+    const group = groups.get(ref.evidenceKind) ?? [];
+    group.push(ref);
+    groups.set(ref.evidenceKind, group);
+  }
+  return [...groups.entries()].sort((a, b) => {
+    const left = priority.indexOf(a[0]);
+    const right = priority.indexOf(b[0]);
+    return (left === -1 ? 999 : left) - (right === -1 ? 999 : right) || a[0].localeCompare(b[0]);
+  });
+}
 
 export default function LearnPanel() {
   const graph = useDashboardStore((s) => s.graph);
+  const nodesById = useDashboardStore((s) => s.nodesById);
   const tourActive = useDashboardStore((s) => s.tourActive);
   const currentTourStep = useDashboardStore((s) => s.currentTourStep);
   const startTour = useDashboardStore((s) => s.startTour);
@@ -13,7 +68,6 @@ export default function LearnPanel() {
   const nextTourStep = useDashboardStore((s) => s.nextTourStep);
   const prevTourStep = useDashboardStore((s) => s.prevTourStep);
   const navigateToNodeInLayer = useDashboardStore((s) => s.navigateToNodeInLayer);
-  const openCodeViewer = useDashboardStore((s) => s.openCodeViewer);
   const { t } = useI18n();
 
   const tourSteps = useMemo(
@@ -27,9 +81,7 @@ export default function LearnPanel() {
   };
 
   const openReferencedNode = (nodeId: string) => {
-    const node = graph?.nodes.find((n) => n.id === nodeId);
     navigateToNodeInLayer(nodeId);
-    if (node?.filePath) openCodeViewer(nodeId);
   };
 
   // State 1: No tour available
@@ -96,6 +148,10 @@ export default function LearnPanel() {
   const progressPct = ((currentTourStep + 1) / totalSteps) * 100;
   const isFirst = currentTourStep === 0;
   const isLast = currentTourStep === totalSteps - 1;
+  const tourReferences = buildTourReferences(step.nodeIds, nodesById);
+  const groupedTourReferences = groupTourReferences(tourReferences);
+  const sourceReferenceCount = tourReferences.filter((ref) => ref.filePath).length;
+  const conceptReferenceCount = tourReferences.length - sourceReferenceCount;
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
@@ -180,29 +236,49 @@ export default function LearnPanel() {
           </div>
         )}
 
-        {/* Referenced component pills */}
+        {/* Referenced component evidence map */}
         {step.nodeIds.length > 0 && (
           <div className="mb-4">
             <h4 className="text-[11px] font-semibold text-accent uppercase tracking-wider mb-2">
-              Referenced Components
+              Evidence Map
             </h4>
-            <div className="flex flex-wrap gap-1.5">
-              {step.nodeIds.map((nodeId) => {
-                const node = graph?.nodes.find((n) => n.id === nodeId);
-                return (
-                  <button
-                    key={nodeId}
-                    type="button"
-                    onClick={() => openReferencedNode(nodeId)}
-                    className="text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
-                    aria-label={`Open referenced component: ${node?.name ?? nodeId}`}
-                    title={node?.filePath ? `Open source: ${node.filePath}` : `Open node: ${node?.name ?? nodeId}`}
-                  >
-                    {node?.name ?? nodeId}
-                  </button>
-                );
-              })}
+            <div className="mb-2 flex flex-wrap gap-1.5 text-[10px] text-text-muted">
+              <span className="rounded border border-border-subtle bg-elevated/70 px-2 py-0.5">
+                {tourReferences.length} refs
+              </span>
+              <span className="rounded border border-border-subtle bg-elevated/70 px-2 py-0.5">
+                {sourceReferenceCount} source
+              </span>
+              <span className="rounded border border-border-subtle bg-elevated/70 px-2 py-0.5">
+                {conceptReferenceCount} concept
+              </span>
             </div>
+            <div className="space-y-2">
+              {groupedTourReferences.map(([kind, refs]) => (
+                <div key={kind}>
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                    {kind} ({refs.length})
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {refs.map((ref) => (
+                      <button
+                        key={ref.nodeId}
+                        type="button"
+                        onClick={() => openReferencedNode(ref.nodeId)}
+                        className="text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
+                        aria-label={`Open referenced component: ${ref.label}`}
+                        title={ref.filePath ? `Inspect source node: ${ref.filePath}` : `Open node: ${ref.label}`}
+                      >
+                        {ref.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
+              Click a reference to inspect its node summary first. Open raw source from the node panel only when you need line-level proof.
+            </p>
           </div>
         )}
       </div>
