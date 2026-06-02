@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { filterToTourStepEvidence } from "../tourFocus";
+import {
+  TOUR_REFERENCE_EDGE_DESCRIPTION,
+  addTourReferenceEdges,
+  filterToTourStepEvidence,
+} from "../tourFocus";
 
 const nodes = [
   { id: "concept:workflow" },
@@ -48,5 +52,32 @@ describe("filterToTourStepEvidence", () => {
     expect(out.active).toBe(false);
     expect(out.nodes).toBe(nodes);
     expect(out.edges).toBe(edges);
+  });
+
+  it("adds explicit tour-reference edges for isolated evidence nodes", () => {
+    const out = addTourReferenceEdges(
+      [{ source: "concept:workflow", target: "file:agent.py", type: "documents" }],
+      ["concept:workflow", "file:agent.py", "file:prompt.j2", "file:config.yaml"],
+    );
+
+    expect(out).toEqual([
+      { source: "concept:workflow", target: "file:agent.py", type: "documents" },
+      {
+        source: "file:agent.py",
+        target: "file:prompt.j2",
+        type: "related",
+        direction: "forward",
+        weight: 0.2,
+        description: TOUR_REFERENCE_EDGE_DESCRIPTION,
+      },
+      {
+        source: "file:prompt.j2",
+        target: "file:config.yaml",
+        type: "related",
+        direction: "forward",
+        weight: 0.2,
+        description: TOUR_REFERENCE_EDGE_DESCRIPTION,
+      },
+    ]);
   });
 });

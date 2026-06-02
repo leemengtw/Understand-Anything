@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { selectTourFitTargetIds } from "../tourFitTargets";
 
 describe("selectTourFitTargetIds", () => {
-  it("focuses the primary anchor for source-heavy tour steps", () => {
+  it("fits every ready node for source-heavy tour steps", () => {
     expect(
       selectTourFitTargetIds(
         ["concept:workflow", "file:a.ts", "file:b.ts", "file:c.ts"],
         new Set(["concept:workflow", "file:a.ts", "file:b.ts", "file:c.ts"]),
       ),
-    ).toEqual(["concept:workflow"]);
+    ).toEqual(["concept:workflow", "file:a.ts", "file:b.ts", "file:c.ts"]);
   });
 
   it("keeps compact tour steps as a readable multi-node fit", () => {

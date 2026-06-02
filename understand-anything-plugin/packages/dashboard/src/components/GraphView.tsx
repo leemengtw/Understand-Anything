@@ -54,7 +54,11 @@ import { deriveContainers } from "../utils/containers";
 import type { DerivedContainer } from "../utils/containers";
 import { computeLayerStats } from "../utils/layerStats";
 import { selectTourFitTargetIds } from "../utils/tourFitTargets";
-import { filterToTourStepEvidence } from "../utils/tourFocus";
+import {
+  TOUR_REFERENCE_EDGE_DESCRIPTION,
+  addTourReferenceEdges,
+  filterToTourStepEvidence,
+} from "../utils/tourFocus";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -535,6 +539,43 @@ function useLayerDetailTopology(): LayerDetailTopology & {
       );
     }
 
+    if (tourFocusActive) {
+      const tourVisibleNodeIds = currentTourNodeIds.filter((nodeId) =>
+        filteredNodeIds.has(nodeId),
+      );
+      filteredGraphEdges = addTourReferenceEdges(
+        filteredGraphEdges,
+        tourVisibleNodeIds,
+      );
+      const ungrouped = filteredGraphNodes.map((node) => node.id);
+      const nodeToContainer = new Map<string, string>();
+      for (const id of ungrouped) {
+        nodeToContainer.set(id, id);
+      }
+      const ungroupedFlowNodes = filteredGraphNodes.map((node) =>
+        buildCustomFlowNode(node, {
+          diffMode,
+          changedNodeIds,
+          affectedNodeIds,
+          onNodeClick: handleNodeSelect,
+        }),
+      );
+
+      return {
+        containers: [],
+        ungrouped,
+        nodeToContainer,
+        intraContainer: [],
+        filteredGraphNodes,
+        filteredGraphEdges,
+        containerFlowNodes: [],
+        ungroupedFlowNodes,
+        aggEdges: filteredGraphEdges.map(buildTourFlowEdge),
+        portalNodes: [],
+        portalEdges: [],
+      };
+    }
+
     // Derive containers + bucket edges
     const { containers, ungrouped } = deriveContainers(
       filteredGraphNodes,
@@ -1006,6 +1047,30 @@ function buildCustomFlowNode(
       isNeighbor: false,
       isSelectionFaded: false,
       onNodeClick: opts.onNodeClick,
+    },
+  };
+}
+
+function buildTourFlowEdge(edge: GraphEdge, index: number): Edge {
+  const isTourReference = edge.description === TOUR_REFERENCE_EDGE_DESCRIPTION;
+  return {
+    id: `${isTourReference ? "tour-ref" : "tour-edge"}-${index}`,
+    source: edge.source,
+    target: edge.target,
+    label: isTourReference ? "tour ref" : edge.type,
+    style: isTourReference
+      ? {
+          stroke: "rgba(212,165,116,0.36)",
+          strokeWidth: 1.2,
+          strokeDasharray: "4 4",
+        }
+      : {
+          stroke: "rgba(212,165,116,0.55)",
+          strokeWidth: 1.6,
+        },
+    labelStyle: {
+      fill: isTourReference ? "rgba(212,165,116,0.72)" : "#a39787",
+      fontSize: 10,
     },
   };
 }
