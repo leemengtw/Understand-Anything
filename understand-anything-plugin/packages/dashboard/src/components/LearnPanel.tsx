@@ -12,7 +12,7 @@ export default function LearnPanel() {
   const setTourStep = useDashboardStore((s) => s.setTourStep);
   const nextTourStep = useDashboardStore((s) => s.nextTourStep);
   const prevTourStep = useDashboardStore((s) => s.prevTourStep);
-  const selectNode = useDashboardStore((s) => s.selectNode);
+  const navigateToNodeInLayer = useDashboardStore((s) => s.navigateToNodeInLayer);
   const { t } = useI18n();
 
   const tourSteps = useMemo(
@@ -22,8 +22,7 @@ export default function LearnPanel() {
   const hasTour = tourSteps.length > 0;
 
   const openTourStep = (stepIndex: number) => {
-    startTour();
-    setTourStep(stepIndex);
+    startTour(stepIndex);
   };
 
   // State 1: No tour available
@@ -53,7 +52,7 @@ export default function LearnPanel() {
         </div>
 
         <button
-          onClick={startTour}
+          onClick={() => startTour()}
           className="w-full mb-4 bg-accent/10 border border-accent/30 text-accent text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-accent/20 transition-colors"
         >
           {t.learnPanel.startTour}
@@ -186,7 +185,7 @@ export default function LearnPanel() {
                 return (
                   <button
                     key={nodeId}
-                    onClick={() => selectNode(nodeId)}
+                    onClick={() => navigateToNodeInLayer(nodeId)}
                     className="text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
                   >
                     {node?.name ?? nodeId}

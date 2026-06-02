@@ -211,7 +211,7 @@ export default function ProjectOverview() {
       {/* Start Tour button */}
       {hasTour && (
         <button
-          onClick={startTour}
+          onClick={() => startTour()}
           className="w-full bg-accent/10 border border-accent/30 text-accent text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-accent/20 transition-all duration-200"
         >
           {t.common.startGuidedTour}

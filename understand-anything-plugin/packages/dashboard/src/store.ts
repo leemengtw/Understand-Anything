@@ -182,7 +182,7 @@ interface DashboardStore {
   resetFilters: () => void;
   hasActiveFilters: () => boolean;
 
-  startTour: () => void;
+  startTour: (initialStep?: number) => void;
   stopTour: () => void;
   setTourStep: (step: number) => void;
   nextTourStep: () => void;
@@ -601,15 +601,16 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       || filters.edgeCategories.size !== ALL_EDGE_CATEGORIES.length;
   },
 
-  startTour: () => {
+  startTour: (initialStep = 0) => {
     const { graph, nodeIdToLayerId, activeLayerId } = get();
     if (!graph || !graph.tour || graph.tour.length === 0) return;
     const sorted = getSortedTour(graph);
-    const layerNav = navigateTourToLayer(nodeIdToLayerId, sorted[0].nodeIds);
+    const step = Math.max(0, Math.min(initialStep, sorted.length - 1));
+    const layerNav = navigateTourToLayer(nodeIdToLayerId, sorted[step].nodeIds);
     set({
       tourActive: true,
-      currentTourStep: 0,
-      tourHighlightedNodeIds: sorted[0].nodeIds,
+      currentTourStep: step,
+      tourHighlightedNodeIds: sorted[step].nodeIds,
       selectedNodeId: null,
       ...layerNav,
       ...layerResetIfChanged(layerNav, activeLayerId),
@@ -781,4 +782,3 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     }),
   clearLayoutIssues: () => set({ layoutIssues: [] }),
 }));
-
