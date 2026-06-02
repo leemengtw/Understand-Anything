@@ -64,6 +64,13 @@ export default function MobileLayout({
   }, [codeViewerOpen]);
 
   const isLearnMode = tourActive || persona === "junior";
+
+  // Keep guided learning visible on mobile. The LearnPanel lives in the
+  // Info pane, so switching persona/tour state must also switch tabs.
+  useEffect(() => {
+    if (isLearnMode) setActiveTab("info");
+  }, [isLearnMode]);
+
   const infoContent = (
     <>
       {selectedNodeId && <NodeInfo />}
