@@ -54,6 +54,7 @@ import { deriveContainers } from "../utils/containers";
 import type { DerivedContainer } from "../utils/containers";
 import { computeLayerStats } from "../utils/layerStats";
 import { selectTourFitTargetIds } from "../utils/tourFitTargets";
+import { filterToTourStepEvidence } from "../utils/tourFocus";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -393,8 +394,8 @@ const EMPTY_TOPOLOGY: LayerDetailTopology = {
  * Topology hook: derives containers, aggregates inter-container edges, then
  * runs Stage 1 ELK on container atoms (no children rendered yet — Task 12
  * lazy-expands them). Only recomputes when the graph structure, active
- * layer, persona, diff state, focus, or filters change. Does NOT depend on
- * selectedNodeId, searchResults, tourHighlightedNodeIds, or
+ * layer, persona, diff state, focus, tour focus, or filters change. Does
+ * NOT depend on selectedNodeId, searchResults, or
  * expandedContainers (Stage 2 concern).
  */
 function useLayerDetailTopology(): LayerDetailTopology & {
@@ -409,6 +410,9 @@ function useLayerDetailTopology(): LayerDetailTopology & {
   const changedNodeIds = useDashboardStore((s) => s.changedNodeIds);
   const affectedNodeIds = useDashboardStore((s) => s.affectedNodeIds);
   const focusNodeId = useDashboardStore((s) => s.focusNodeId);
+  const tourActive = useDashboardStore((s) => s.tourActive);
+  const currentTourStep = useDashboardStore((s) => s.currentTourStep);
+  const tourHighlightedNodeIds = useDashboardStore((s) => s.tourHighlightedNodeIds);
   const nodeTypeFilters = useDashboardStore((s) => s.nodeTypeFilters);
   const drillIntoLayer = useDashboardStore((s) => s.drillIntoLayer);
   const detailLevel = useDashboardStore((s) => s.detailLevel);
@@ -438,7 +442,18 @@ function useLayerDetailTopology(): LayerDetailTopology & {
     const activeLayer = graph.layers.find((l) => l.id === activeLayerId);
     if (!activeLayer) return null;
 
+    const currentTourNodeIds =
+      tourActive && graph.tour
+        ? ([...graph.tour].sort((a, b) => a.order - b.order)[currentTourStep]?.nodeIds ?? [])
+        : tourHighlightedNodeIds;
+
     const layerNodeIds = new Set(activeLayer.nodeIds);
+    const hasTourFocus = currentTourNodeIds.length > 0;
+    if (hasTourFocus) {
+      for (const nodeId of currentTourNodeIds) {
+        layerNodeIds.add(nodeId);
+      }
+    }
 
     // Expand layer membership to include sub-file nodes (function/class)
     // whose parent file is in this layer. Joined via "contains" edges.
@@ -491,6 +506,18 @@ function useLayerDetailTopology(): LayerDetailTopology & {
     let filteredGraphEdges = graph.edges.filter(
       (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
     );
+
+    const tourFocus = filterToTourStepEvidence(
+      filteredGraphNodes,
+      filteredGraphEdges,
+      currentTourNodeIds,
+    );
+    const tourFocusActive = tourFocus.active;
+    if (tourFocus.active) {
+      filteredGraphNodes = tourFocus.nodes;
+      filteredNodeIds = new Set(filteredGraphNodes.map((n) => n.id));
+      filteredGraphEdges = tourFocus.edges;
+    }
 
     // Focus mode: 1-hop neighborhood within the layer
     if (focusNodeId && filteredNodeIds.has(focusNodeId)) {
@@ -619,8 +646,10 @@ function useLayerDetailTopology(): LayerDetailTopology & {
       };
     });
 
-    // Portal nodes for connected external layers (unchanged)
-    const portals = computePortals(graph, activeLayerId);
+    // Portal nodes provide layer-level context in ordinary detail view. In
+    // tour focus, they become noise because the current step's cross-layer
+    // references are already projected directly as evidence nodes.
+    const portals = tourFocusActive ? [] : computePortals(graph, activeLayerId);
     const layerIndexMap = new Map(graph.layers.map((l, i) => [l.id, i]));
 
     const portalNodes: PortalFlowNode[] = portals.map((portal) => ({
@@ -681,6 +710,9 @@ function useLayerDetailTopology(): LayerDetailTopology & {
     changedNodeIds,
     affectedNodeIds,
     focusNodeId,
+    tourActive,
+    currentTourStep,
+    tourHighlightedNodeIds,
     nodeTypeFilters,
     drillIntoLayer,
     detailLevel,
@@ -1556,6 +1588,14 @@ function GraphViewInner() {
             <span>Showing neighborhood</span>
             <span className="text-text-muted">&times;</span>
           </button>
+        </div>
+      )}
+      {tourHighlightedNodeIds.length > 0 && navigationLevel === "layer-detail" && !focusNodeId && (
+        <div
+          data-testid="tour-focus-indicator"
+          className="absolute top-14 left-1/2 -translate-x-1/2 z-10 rounded-full border border-accent/30 bg-elevated/90 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-accent shadow-lg backdrop-blur"
+        >
+          Tour focus · current step evidence only
         </div>
       )}
       <ReactFlow
