@@ -43,8 +43,6 @@ function normalizeGraphPath(filePath: string, projectRoot: string): string | nul
     !normalized ||
     normalized === "." ||
     normalized.includes("\0") ||
-    normalized === ".." ||
-    normalized.startsWith(`..${path.sep}`) ||
     path.isAbsolute(normalized)
   ) {
     return null;
@@ -118,14 +116,7 @@ function readSourceFile(url: URL) {
   if (path.isAbsolute(requestedPath)) return rejectFileRequest("Absolute paths are not allowed");
 
   const normalizedPath = path.normalize(requestedPath);
-  if (
-    normalizedPath === "." ||
-    normalizedPath.startsWith(`..${path.sep}`) ||
-    normalizedPath === ".." ||
-    path.isAbsolute(normalizedPath)
-  ) {
-    return rejectFileRequest("Path must stay inside the project");
-  }
+  if (normalizedPath === "." || path.isAbsolute(normalizedPath)) return rejectFileRequest("Invalid path");
 
   const graphFile = findGraphFile("knowledge-graph.json");
   if (!graphFile) {
@@ -133,20 +124,14 @@ function readSourceFile(url: URL) {
   }
 
   const projectRoot = projectRootFromGraphFile(graphFile);
-  const absoluteFile = path.resolve(projectRoot, normalizedPath);
-  const relativeToRoot = path.relative(projectRoot, absoluteFile);
-  if (
-    !relativeToRoot ||
-    relativeToRoot.startsWith(`..${path.sep}`) ||
-    relativeToRoot === ".." ||
-    path.isAbsolute(relativeToRoot)
-  ) {
-    return rejectFileRequest("Path must stay inside the project");
-  }
-  const safeRelativePath = relativeToRoot.split(path.sep).join("/");
-  if (!graphFilePathSet(graphFile, projectRoot).has(safeRelativePath)) {
+  const safeGraphPath = normalizedPath.split(path.sep).join("/");
+  if (!graphFilePathSet(graphFile, projectRoot).has(safeGraphPath)) {
     return rejectFileRequest("File is not in the knowledge graph", 404);
   }
+
+  const absoluteFile = path.resolve(projectRoot, normalizedPath);
+  const relativeToRoot = path.relative(projectRoot, absoluteFile);
+  const safeRelativePath = relativeToRoot.split(path.sep).join("/");
 
   let stat: fs.Stats;
   try {

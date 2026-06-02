@@ -392,19 +392,27 @@ function DashboardContent({
   // Register keyboard shortcuts
   useKeyboardShortcuts(shortcuts);
 
-  // Determine sidebar content
-  // NodeInfo always takes priority when a node is selected.
-  // Learn mode adds LearnPanel below it; otherwise ProjectOverview shows when idle.
+  // Determine sidebar content.
+  // Guided learning stays first so source deep dives do not push tour navigation
+  // below the visible sidebar. NodeInfo remains available below the tour.
   const isLearnMode = tourActive || persona === "junior";
-  const infoSidebarContent = (
-    <>
-      {selectedNodeId && <NodeInfo />}
-      {isLearnMode && (
+  const infoSidebarContent = isLearnMode ? (
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0">
         <Suspense fallback={null}>
           <LearnPanel />
         </Suspense>
+      </div>
+      {selectedNodeId && !codeViewerOpen && (
+        <div className="min-h-[160px] max-h-[40%] overflow-auto border-t border-border-subtle">
+          <NodeInfo />
+        </div>
       )}
-      {!selectedNodeId && !isLearnMode && <ProjectOverview />}
+    </div>
+  ) : (
+    <>
+      {selectedNodeId && <NodeInfo />}
+      {!selectedNodeId && <ProjectOverview />}
     </>
   );
 
@@ -426,8 +434,14 @@ function DashboardContent({
           </button>
         ))}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto">
-        {sidebarTab === "files" ? <FileExplorer /> : infoSidebarContent}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {sidebarTab === "files" ? (
+          <div className="h-full overflow-auto">
+            <FileExplorer />
+          </div>
+        ) : (
+          infoSidebarContent
+        )}
       </div>
     </div>
   );
@@ -674,21 +688,21 @@ function DashboardContent({
           <div className="absolute top-3 right-3 text-sm text-text-muted/60 pointer-events-none select-none">
             {t.common.pressKeyboard}
           </div>
+          {/* Code viewer slide-up overlay (collapsed state).
+              Keep it inside the graph pane so guided tours in the sidebar stay usable. */}
+          {codeViewerOpen && !codeViewerExpanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-surface border-t border-border-subtle animate-slide-up z-20 overflow-hidden">
+              <Suspense fallback={null}>
+                <CodeViewer accessToken={accessToken} onExpand={expandCodeViewer} />
+              </Suspense>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar — telescopes at narrower widths */}
-        <aside className="w-[260px] md:w-[300px] lg:w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-auto">
+        <aside className="w-[260px] md:w-[300px] lg:w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-hidden">
           {sidebarContent}
         </aside>
-
-        {/* Code viewer slide-up overlay (collapsed state) */}
-        {codeViewerOpen && !codeViewerExpanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-surface border-t border-border-subtle animate-slide-up z-20 overflow-hidden">
-            <Suspense fallback={null}>
-              <CodeViewer accessToken={accessToken} onExpand={expandCodeViewer} />
-            </Suspense>
-          </div>
-        )}
       </div>
 
       {/* Expanded code viewer modal */}
