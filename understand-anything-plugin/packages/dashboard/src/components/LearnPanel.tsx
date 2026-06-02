@@ -13,6 +13,7 @@ export default function LearnPanel() {
   const nextTourStep = useDashboardStore((s) => s.nextTourStep);
   const prevTourStep = useDashboardStore((s) => s.prevTourStep);
   const navigateToNodeInLayer = useDashboardStore((s) => s.navigateToNodeInLayer);
+  const openCodeViewer = useDashboardStore((s) => s.openCodeViewer);
   const { t } = useI18n();
 
   const tourSteps = useMemo(
@@ -23,6 +24,12 @@ export default function LearnPanel() {
 
   const openTourStep = (stepIndex: number) => {
     startTour(stepIndex);
+  };
+
+  const openReferencedNode = (nodeId: string) => {
+    const node = graph?.nodes.find((n) => n.id === nodeId);
+    navigateToNodeInLayer(nodeId);
+    if (node?.filePath) openCodeViewer(nodeId);
   };
 
   // State 1: No tour available
@@ -185,8 +192,11 @@ export default function LearnPanel() {
                 return (
                   <button
                     key={nodeId}
-                    onClick={() => navigateToNodeInLayer(nodeId)}
+                    type="button"
+                    onClick={() => openReferencedNode(nodeId)}
                     className="text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
+                    aria-label={`Open referenced component: ${node?.name ?? nodeId}`}
+                    title={node?.filePath ? `Open source: ${node.filePath}` : `Open node: ${node?.name ?? nodeId}`}
                   >
                     {node?.name ?? nodeId}
                   </button>
