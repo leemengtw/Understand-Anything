@@ -113,6 +113,10 @@ function Dashboard({ accessToken }: { accessToken: string }) {
   const [graphIssues, setGraphIssues] = useState<GraphIssue[]>([]);
   const [metaTheme, setMetaTheme] = useState<ThemeConfig | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string | undefined>();
+  const [dataReloadVersion, setDataReloadVersion] = useState(0);
+  const reloadData = useCallback(() => {
+    setDataReloadVersion((version) => version + 1);
+  }, []);
 
   useEffect(() => {
     fetch(dataUrl("meta.json", accessToken))
@@ -127,7 +131,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         if (config?.outputLanguage) setOutputLanguage(config.outputLanguage);
       })
       .catch(() => {});
-  }, []);
+  }, [accessToken, dataReloadVersion]);
 
   useEffect(() => {
     fetch(dataUrl("knowledge-graph.json", accessToken))
@@ -160,7 +164,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         console.error("Failed to load knowledge graph:", err);
         setLoadError(`Failed to load knowledge graph: ${err instanceof Error ? err.message : String(err)}`);
       });
-  }, [setGraph]);
+  }, [accessToken, dataReloadVersion, setGraph]);
 
   useEffect(() => {
     fetch(dataUrl("diff-overlay.json", accessToken))
@@ -184,7 +188,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         }
       })
       .catch(() => {});
-  }, [setDiffOverlay]);
+  }, [accessToken, dataReloadVersion, setDiffOverlay]);
 
   useEffect(() => {
     fetch(dataUrl("domain-graph.json", accessToken))
@@ -202,7 +206,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         }
       })
       .catch(() => {});
-  }, [setDomainGraph]);
+  }, [accessToken, dataReloadVersion, setDomainGraph]);
 
   return (
     <I18nProvider language={outputLanguage ?? "en"}>
@@ -211,6 +215,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
           accessToken={accessToken}
           loadError={loadError}
           graphIssues={graphIssues}
+          onReloadData={reloadData}
         />
       </ThemeProvider>
     </I18nProvider>
@@ -221,10 +226,12 @@ function DashboardContent({
   accessToken,
   loadError,
   graphIssues,
+  onReloadData,
 }: {
   accessToken: string;
   loadError: string | null;
   graphIssues: GraphIssue[];
+  onReloadData: () => void;
 }) {
   const graph = useDashboardStore((s) => s.graph);
   const selectedNodeId = useDashboardStore((s) => s.selectedNodeId);
@@ -571,6 +578,28 @@ function DashboardContent({
 
         {/* Right — fixed actions */}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <button
+            type="button"
+            onClick={onReloadData}
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-sm bg-elevated text-text-secondary hover:text-text-primary transition-colors"
+            title="Reload graph and diff data"
+            aria-label="Reload graph and diff data"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h5M20 20v-5h-5M6.5 9A7 7 0 0118 6.2M17.5 15A7 7 0 016 17.8"
+              />
+            </svg>
+            <span className="hidden md:inline">Reload</span>
+          </button>
           <FilterPanel />
           <ExportMenu />
           <button
