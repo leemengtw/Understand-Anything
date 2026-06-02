@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../contexts/I18nContext";
@@ -79,6 +79,7 @@ export default function CodeViewer({
     source: null,
     error: null,
   });
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -121,8 +122,28 @@ export default function CodeViewer({
 
   const highlightedRange = useMemo(() => {
     if (!node?.lineRange) return null;
-    return { start: node.lineRange[0], end: node.lineRange[1] };
+    const start = Number(node.lineRange[0]);
+    const end = Number(node.lineRange[1]);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    return { start, end };
   }, [node?.lineRange]);
+
+  useEffect(() => {
+    if (state.status !== "loaded" || !highlightedRange) return;
+    const scrollToHighlightedStart = () => {
+      const container = scrollContainerRef.current;
+      const line = container?.querySelector<HTMLElement>("[data-highlighted-start='true']");
+      if (!container || !line) return;
+      const top = Math.max(0, line.offsetTop - container.clientHeight * 0.35);
+      container.scrollTop = top;
+    };
+    const frame = requestAnimationFrame(scrollToHighlightedStart);
+    const timeout = window.setTimeout(scrollToHighlightedStart, 75);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [highlightedRange?.end, highlightedRange?.start, state.status]);
 
   if (!node) {
     return (
@@ -194,7 +215,7 @@ export default function CodeViewer({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto bg-root">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto bg-root">
         {state.status === "loading" && (
           <div className="p-5 text-sm text-text-muted">{t.codeViewer.loading}</div>
         )}
@@ -233,6 +254,7 @@ export default function CodeViewer({
                       <div
                         key={lineNumber}
                         {...lineProps}
+                        data-highlighted-start={isHighlighted && lineNumber === highlightedRange?.start ? "true" : undefined}
                         className={`${lineProps.className} flex ${
                           isHighlighted ? "bg-accent/15" : "hover:bg-elevated/40"
                         }`}
