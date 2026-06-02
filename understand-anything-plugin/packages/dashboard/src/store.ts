@@ -633,6 +633,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     set({
       currentTourStep: step,
       tourHighlightedNodeIds: sorted[step].nodeIds,
+      selectedNodeId: null,
       ...layerNav,
       ...layerResetIfChanged(layerNav, activeLayerId),
     });
@@ -648,6 +649,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       set({
         currentTourStep: next,
         tourHighlightedNodeIds: sorted[next].nodeIds,
+        selectedNodeId: null,
         ...layerNav,
         ...layerResetIfChanged(layerNav, activeLayerId),
       });
@@ -664,6 +666,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       set({
         currentTourStep: prev,
         tourHighlightedNodeIds: sorted[prev].nodeIds,
+        selectedNodeId: null,
         ...layerNav,
         ...layerResetIfChanged(layerNav, activeLayerId),
       });
