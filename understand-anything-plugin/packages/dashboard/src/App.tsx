@@ -24,6 +24,7 @@ import { ThemeProvider } from "./themes/index.ts";
 import { ThemePicker } from "./components/ThemePicker.tsx";
 import type { ThemeConfig } from "./themes/index.ts";
 import { I18nProvider, useI18n } from "./contexts/I18nContext.tsx";
+import { shouldAutoStartTour } from "./utils/autoStartTour";
 
 // Lazy-load heavy / optional components so they ship in separate chunks.
 const CodeViewer = lazy(() => import("./components/CodeViewer"));
@@ -140,6 +141,9 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         const result = validateGraph(data);
         if (result.success && result.data) {
           setGraph(result.data);
+          if (shouldAutoStartTour(result.data)) {
+            useDashboardStore.getState().startTour(0);
+          }
           setGraphIssues(result.issues);
           if ((data as Record<string, unknown>).kind === "knowledge") {
             useDashboardStore.getState().setViewMode("knowledge");
