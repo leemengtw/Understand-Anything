@@ -559,6 +559,7 @@ function useLayerDetailTopology(): LayerDetailTopology & {
           diffMode,
           changedNodeIds,
           affectedNodeIds,
+          suppressDiffFade: true,
           onNodeClick: handleNodeSelect,
         }),
       );
@@ -1045,6 +1046,7 @@ function buildCustomFlowNode(
     diffMode: boolean;
     changedNodeIds: Set<string>;
     affectedNodeIds: Set<string>;
+    suppressDiffFade?: boolean;
     onNodeClick: (nodeId: string) => void;
   },
 ): CustomFlowNode {
@@ -1065,6 +1067,7 @@ function buildCustomFlowNode(
       isDiffChanged: opts.diffMode && opts.changedNodeIds.has(node.id),
       isDiffAffected: opts.diffMode && opts.affectedNodeIds.has(node.id),
       isDiffFaded:
+        !opts.suppressDiffFade &&
         opts.diffMode &&
         !opts.changedNodeIds.has(node.id) &&
         !opts.affectedNodeIds.has(node.id),
