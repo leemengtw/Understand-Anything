@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../contexts/I18nContext";
@@ -128,22 +128,30 @@ export default function CodeViewer({
     return { start, end };
   }, [node?.lineRange]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state.status !== "loaded" || !highlightedRange) return;
+    let cancelled = false;
     const scrollToHighlightedStart = () => {
+      if (cancelled) return;
       const container = scrollContainerRef.current;
       const line = container?.querySelector<HTMLElement>("[data-highlighted-start='true']");
       if (!container || !line) return;
-      const top = Math.max(0, line.offsetTop - container.clientHeight * 0.35);
+      const containerRect = container.getBoundingClientRect();
+      const lineRect = line.getBoundingClientRect();
+      const top = Math.max(
+        0,
+        container.scrollTop + lineRect.top - containerRect.top - container.clientHeight * 0.35,
+      );
       container.scrollTop = top;
     };
     const frame = requestAnimationFrame(scrollToHighlightedStart);
-    const timeout = window.setTimeout(scrollToHighlightedStart, 75);
+    const timeouts = [75, 250, 600].map((delay) => window.setTimeout(scrollToHighlightedStart, delay));
     return () => {
+      cancelled = true;
       cancelAnimationFrame(frame);
-      window.clearTimeout(timeout);
+      for (const timeout of timeouts) window.clearTimeout(timeout);
     };
-  }, [highlightedRange?.end, highlightedRange?.start, state.status]);
+  }, [codeViewerNodeId, highlightedRange?.end, highlightedRange?.start, state.status]);
 
   if (!node) {
     return (
