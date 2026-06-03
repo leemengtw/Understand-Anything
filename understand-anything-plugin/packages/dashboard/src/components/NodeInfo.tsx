@@ -349,7 +349,7 @@ export default function NodeInfo() {
   }
 
   return (
-    <div className="h-full w-full overflow-auto p-5 animate-fade-slide-in">
+    <div className="h-full w-full overflow-auto p-5 animate-fade-slide-in ua-readable-text">
       {/* Navigation history trail */}
       {historyNodes.length > 0 && (
         <div className="mb-3 flex items-center gap-1 flex-wrap">
@@ -421,7 +421,7 @@ export default function NodeInfo() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium text-text-muted mb-1">{t.common.file}</div>
-              <div className="font-mono truncate" title={node.filePath}>
+              <div className="font-mono break-all" title={node.filePath}>
                 {node.filePath}
                 {node.lineRange && (
                   <span className="ml-2 text-text-muted">

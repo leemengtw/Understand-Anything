@@ -182,7 +182,7 @@ export default function LearnPanel() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 min-h-0 ua-readable-text">
         {/* Step title */}
         <h2 className="text-lg font-heading text-text-primary mb-3">{step.title}</h2>
 
@@ -199,7 +199,7 @@ export default function LearnPanel() {
               code: ({ className, children }) => {
                 const isBlock = className?.includes("language-");
                 return isBlock ? (
-                  <code className="block bg-elevated rounded px-2 py-1.5 mb-1.5 overflow-x-auto text-[11px] leading-relaxed">
+                  <code className="block bg-elevated rounded px-2 py-1.5 mb-1.5 text-[11px] leading-relaxed whitespace-pre-wrap">
                     {children}
                   </code>
                 ) : (
@@ -265,7 +265,7 @@ export default function LearnPanel() {
                         key={ref.nodeId}
                         type="button"
                         onClick={() => openReferencedNode(ref.nodeId)}
-                        className="text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
+                        className="max-w-full text-[11px] glass text-text-secondary px-2.5 py-1 rounded-full hover:text-text-primary transition-colors cursor-pointer"
                         aria-label={`Open referenced component: ${ref.label}`}
                         title={ref.filePath ? `Inspect source node: ${ref.filePath}` : `Open node: ${ref.label}`}
                       >

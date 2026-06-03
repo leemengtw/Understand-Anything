@@ -87,6 +87,36 @@
 
 .font-heading { font-family: var(--font-heading); }
 
+.ua-readable-text,
+.tour-markdown {
+  min-width: 0;
+}
+
+.ua-readable-text :where(h1,h2,h3,h4,h5,h6,p,li,span,button,strong),
+.tour-markdown :where(h1,h2,h3,h4,h5,h6,p,li,span,button,strong) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ua-readable-text code,
+.tour-markdown code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.ua-readable-text pre,
+.tour-markdown pre {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Base styles */
 html {
   transition: background-color 0.2s ease, color 0.2s ease;
