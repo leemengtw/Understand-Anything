@@ -80,4 +80,31 @@ describe("filterToTourStepEvidence", () => {
       },
     ]);
   });
+
+  it("can build a tour-reference-only evidence path", () => {
+    const out = addTourReferenceEdges([], [
+      "concept:workflow",
+      "file:agent.py",
+      "file:prompt.j2",
+    ]);
+
+    expect(out).toEqual([
+      {
+        source: "concept:workflow",
+        target: "file:agent.py",
+        type: "related",
+        direction: "forward",
+        weight: 0.2,
+        description: TOUR_REFERENCE_EDGE_DESCRIPTION,
+      },
+      {
+        source: "file:agent.py",
+        target: "file:prompt.j2",
+        type: "related",
+        direction: "forward",
+        weight: 0.2,
+        description: TOUR_REFERENCE_EDGE_DESCRIPTION,
+      },
+    ]);
+  });
 });

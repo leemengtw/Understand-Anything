@@ -54,6 +54,7 @@ import { deriveContainers } from "../utils/containers";
 import type { DerivedContainer } from "../utils/containers";
 import { computeLayerStats } from "../utils/layerStats";
 import { selectTourFitTargetIds } from "../utils/tourFitTargets";
+import { layoutTourEvidenceBoard } from "../utils/tourEvidenceBoard";
 import {
   TOUR_REFERENCE_EDGE_DESCRIPTION,
   addTourReferenceEdges,
@@ -543,10 +544,11 @@ function useLayerDetailTopology(): LayerDetailTopology & {
       const tourVisibleNodeIds = currentTourNodeIds.filter((nodeId) =>
         filteredNodeIds.has(nodeId),
       );
-      filteredGraphEdges = addTourReferenceEdges(
-        filteredGraphEdges,
-        tourVisibleNodeIds,
-      );
+      // The guided tour graph is a first-principles evidence board, not a
+      // dependency graph. Real source edges remain available through node
+      // details and normal deep-dive mode; here they create spaghetti and
+      // hide the ordered proof path the tour is trying to teach.
+      filteredGraphEdges = addTourReferenceEdges([], tourVisibleNodeIds);
       const ungrouped = filteredGraphNodes.map((node) => node.id);
       const nodeToContainer = new Map<string, string>();
       for (const id of ungrouped) {
@@ -562,6 +564,7 @@ function useLayerDetailTopology(): LayerDetailTopology & {
       );
 
       return {
+        manualLayout: true,
         containers: [],
         ungrouped,
         nodeToContainer,
@@ -569,7 +572,7 @@ function useLayerDetailTopology(): LayerDetailTopology & {
         filteredGraphNodes,
         filteredGraphEdges,
         containerFlowNodes: [],
-        ungroupedFlowNodes,
+        ungroupedFlowNodes: layoutTourEvidenceBoard(ungroupedFlowNodes),
         aggEdges: filteredGraphEdges.map(buildTourFlowEdge),
         portalNodes: [],
         portalEdges: [],
@@ -730,6 +733,7 @@ function useLayerDetailTopology(): LayerDetailTopology & {
     }
 
     return {
+      manualLayout: false,
       containers,
       ungrouped,
       nodeToContainer,
@@ -790,6 +794,26 @@ function useLayerDetailTopology(): LayerDetailTopology & {
       portalNodes,
       portalEdges,
     } = built;
+
+    if (built.manualLayout) {
+      setTopology({
+        nodes: [
+          ...(containerFlowNodes as unknown as Node[]),
+          ...(ungroupedFlowNodes as unknown as Node[]),
+          ...(portalNodes as unknown as Node[]),
+        ],
+        edges: aggEdges,
+        portalNodes,
+        portalEdges,
+        filteredEdges: filteredGraphEdges,
+        filteredNodes: filteredGraphNodes,
+        containers,
+        nodeToContainer,
+        intraContainer,
+      });
+      setLayoutStatus("ready");
+      return;
+    }
 
     // Build Stage 1 ELK input: containers as opaque atoms + ungrouped files
     // + portals, all at the top level.
