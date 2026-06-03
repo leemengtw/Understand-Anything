@@ -393,18 +393,32 @@ function DashboardContent({
   useKeyboardShortcuts(shortcuts);
 
   // Determine sidebar content.
-  // Guided learning stays first so source deep dives do not push tour navigation
-  // below the visible sidebar. NodeInfo remains available below the tour.
+  // In learn mode, selected/focused nodes are an explicit deep dive. Keep the
+  // node evidence first so source/research proof stays readable, with the
+  // tour guide retained below as context.
   const isLearnMode = tourActive || persona === "junior";
   const infoSidebarContent = isLearnMode ? (
     <div className="h-full min-h-0 flex flex-col">
-      <div className="flex-1 min-h-0">
-        <Suspense fallback={null}>
-          <LearnPanel />
-        </Suspense>
-      </div>
-      {selectedNodeId && !codeViewerOpen && (
-        <div className="min-h-[160px] max-h-[40%] overflow-auto border-t border-border-subtle">
+      {selectedNodeId && !codeViewerOpen ? (
+        <>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <NodeInfo />
+          </div>
+          <div className="shrink-0 max-h-[36%] overflow-auto border-t border-border-subtle">
+            <Suspense fallback={null}>
+              <LearnPanel />
+            </Suspense>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 min-h-0">
+          <Suspense fallback={null}>
+            <LearnPanel />
+          </Suspense>
+        </div>
+      )}
+      {selectedNodeId && codeViewerOpen && (
+        <div className="shrink-0 max-h-[32%] overflow-auto border-t border-border-subtle">
           <NodeInfo />
         </div>
       )}
