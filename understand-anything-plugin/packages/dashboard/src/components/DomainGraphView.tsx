@@ -187,13 +187,13 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
 
   return (
     <div
-      className="absolute left-3 top-3 z-10 max-h-[170px] w-[min(680px,calc(100%-1.5rem))] overflow-auto rounded-lg border border-border-subtle bg-surface/95 p-3 shadow-lg shadow-black/15 backdrop-blur"
+      className="absolute left-3 top-3 z-10 max-h-[280px] w-[min(980px,calc(100%-1.5rem))] overflow-auto rounded-lg border border-border-subtle bg-surface/95 p-3 shadow-lg shadow-black/15 backdrop-blur"
       data-testid="domain-overview-handoffs"
     >
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
         Domain handoffs
       </div>
-      <div className="space-y-1.5">
+      <div className="grid gap-1.5 md:grid-cols-2">
         {handoffs.map((handoff) => (
           <button
             key={`${handoff.sourceId}-${handoff.targetId}-${handoff.index}`}
@@ -285,7 +285,6 @@ function DomainGraphViewInner() {
     if (nodes.length === 0) return;
     const readableZoom = isOverview ? DOMAIN_OVERVIEW_READABLE_ZOOM : DOMAIN_DETAIL_READABLE_ZOOM;
     const timeoutId = window.setTimeout(() => {
-      if (reactFlow.getZoom() >= readableZoom * 0.98) return;
       const anchorNode = nodes.reduce((leftMost, node) =>
         node.position.x < leftMost.position.x ? node : leftMost,
       );
@@ -326,8 +325,6 @@ function DomainGraphViewInner() {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
         minZoom={isOverview ? DOMAIN_OVERVIEW_MIN_ZOOM : DOMAIN_DETAIL_MIN_ZOOM}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
