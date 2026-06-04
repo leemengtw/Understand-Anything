@@ -167,6 +167,23 @@ function DomainNodeDetails({ node, graph }: { node: GraphNode; graph: KnowledgeG
             </div>
           </div>
         ) : null}
+        {flows.length > 0 && (
+          <div>
+            <h4 className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t.nodeInfo.flows}</h4>
+            <div className="space-y-1">
+              {flows.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => { navigateToDomain(node.id); selectNode(f.id); }}
+                  className="block w-full text-left px-2 py-1.5 rounded bg-elevated hover:bg-accent/10 text-[11px] text-text-secondary hover:text-accent transition-colors"
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {Array.isArray(meta?.businessRules) && meta.businessRules.length > 0 ? (
           <div>
             <h4 className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t.nodeInfo.businessRules}</h4>
@@ -187,23 +204,6 @@ function DomainNodeDetails({ node, graph }: { node: GraphNode; graph: KnowledgeG
             </ul>
           </div>
         ) : null}
-        {flows.length > 0 && (
-          <div>
-            <h4 className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t.nodeInfo.flows}</h4>
-            <div className="space-y-1">
-              {flows.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => { navigateToDomain(node.id); selectNode(f.id); }}
-                  className="block w-full text-left px-2 py-1.5 rounded bg-elevated hover:bg-accent/10 text-[11px] text-text-secondary hover:text-accent transition-colors"
-                >
-                  {f.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   }

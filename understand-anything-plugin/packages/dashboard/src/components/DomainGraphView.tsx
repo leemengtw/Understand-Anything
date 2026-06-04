@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  BaseEdge,
   ReactFlow,
   ReactFlowProvider,
   Background,
   BackgroundVariant,
   Controls,
+  EdgeLabelRenderer,
   MiniMap,
+  getBezierPath,
   useReactFlow,
 } from "@xyflow/react";
-import type { Edge, Node } from "@xyflow/react";
+import type { Edge, EdgeProps, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import DomainClusterNode from "./DomainClusterNode";
@@ -28,6 +31,51 @@ const nodeTypes = {
   "domain-cluster": DomainClusterNode,
   "flow-node": FlowNode,
   "step-node": StepNode,
+};
+
+function DomainHandoffEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  label,
+}: EdgeProps) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {label ? (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan pointer-events-none absolute rounded-full border border-accent/40 bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none text-accent shadow-sm shadow-black/20"
+            data-testid="domain-handoff-edge-badge"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
+const edgeTypes = {
+  "domain-handoff": DomainHandoffEdge,
 };
 
 const DOMAIN_OVERVIEW_READABLE_ZOOM = 0.72;
@@ -88,14 +136,11 @@ function buildDomainOverview(graph: KnowledgeGraph): BuiltGraph {
   const rfEdges: Edge[] = buildDomainHandoffs(graph)
     .map((handoff) => ({
       id: `cd-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`,
+      type: "domain-handoff",
       source: handoff.sourceId,
       target: handoff.targetId,
       label: handoff.badge,
       style: { stroke: "var(--color-accent)", strokeDasharray: "6 3", strokeWidth: 2 },
-      labelStyle: { fill: "var(--color-text-primary)", fontSize: 10, fontWeight: 700 },
-      labelBgStyle: { fill: "var(--color-surface)", fillOpacity: 0.9 },
-      labelBgPadding: [6, 3] as [number, number],
-      labelBgBorderRadius: 999,
       animated: true,
     }));
 
@@ -187,7 +232,7 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
 
   return (
     <div
-      className="absolute left-3 top-3 z-10 max-h-[280px] w-[min(980px,calc(100%-1.5rem))] overflow-auto rounded-lg border border-border-subtle bg-surface/95 p-3 shadow-lg shadow-black/15 backdrop-blur"
+      className="shrink-0 rounded-lg border border-border-subtle bg-surface/95 p-3 shadow-lg shadow-black/15 backdrop-blur"
       data-testid="domain-overview-handoffs"
     >
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
@@ -307,9 +352,47 @@ function DomainGraphViewInner() {
     );
   }
 
+  const flow = (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      minZoom={isOverview ? DOMAIN_OVERVIEW_MIN_ZOOM : DOMAIN_DETAIL_MIN_ZOOM}
+      maxZoom={2}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={20}
+        size={1}
+        color="var(--color-border-subtle)"
+      />
+      <Controls />
+      <MiniMap
+        nodeColor="var(--color-accent)"
+        maskColor="var(--glass-bg)"
+        className="!bg-surface !border !border-border-subtle"
+      />
+    </ReactFlow>
+  );
+
+  if (isOverview) {
+    return (
+      <div className="grid h-full w-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 p-3">
+        {domainGraph && <DomainOverviewHandoffList graph={domainGraph} />}
+        <div
+          className="relative min-h-0 overflow-hidden rounded-lg border border-border-subtle bg-root/40"
+          data-testid="domain-overview-flow-shell"
+        >
+          {flow}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full relative">
-      {isOverview && domainGraph && <DomainOverviewHandoffList graph={domainGraph} />}
       {activeDomainId && (
         <div className="absolute top-3 left-3 z-10">
           <button
@@ -321,27 +404,7 @@ function DomainGraphViewInner() {
           </button>
         </div>
       )}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        minZoom={isOverview ? DOMAIN_OVERVIEW_MIN_ZOOM : DOMAIN_DETAIL_MIN_ZOOM}
-        maxZoom={2}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color="var(--color-border-subtle)"
-        />
-        <Controls />
-        <MiniMap
-          nodeColor="var(--color-accent)"
-          maskColor="var(--glass-bg)"
-          className="!bg-surface !border !border-border-subtle"
-        />
-      </ReactFlow>
+      {flow}
     </div>
   );
 }
