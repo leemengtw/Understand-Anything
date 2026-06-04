@@ -15,7 +15,6 @@ import type { Edge, EdgeProps, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import DomainClusterNode from "./DomainClusterNode";
-import type { DomainClusterFlowNode } from "./DomainClusterNode";
 import FlowNode from "./FlowNode";
 import type { FlowFlowNode } from "./FlowNode";
 import StepNode from "./StepNode";
@@ -25,6 +24,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { mergeElkPositions, nodesToElkInput } from "../utils/layout";
 import { applyElkLayout } from "../utils/elk-layout";
 import { buildDomainHandoffs } from "../utils/domainHandoffs";
+import type { DomainHandoff } from "../utils/domainHandoffs";
 import type { KnowledgeGraph, GraphNode } from "@understand-anything/core/types";
 
 const nodeTypes = {
@@ -102,49 +102,51 @@ interface BuiltGraph {
   dims: Map<string, { width: number; height: number }>;
 }
 
-function buildDomainOverview(graph: KnowledgeGraph): BuiltGraph {
-  const dims = new Map<string, { width: number; height: number }>();
-  const domainNodes = graph.nodes.filter((n) => n.type === "domain");
+interface DomainOverviewRouteDomain {
+  id: string;
+  label: string;
+  summary: string;
+  entities?: string[];
+  flowCount: number;
+  businessRules?: string[];
+  incomingHandoffs: DomainHandoff[];
+  outgoingHandoffs: DomainHandoff[];
+}
 
-  // Count flows per domain
+function getDomainFlowCounts(graph: KnowledgeGraph): Map<string, number> {
   const flowCountMap = new Map<string, number>();
   for (const edge of graph.edges) {
     if (edge.type === "contains_flow") {
       flowCountMap.set(edge.source, (flowCountMap.get(edge.source) ?? 0) + 1);
     }
   }
+  return flowCountMap;
+}
 
-  const rfNodes: DomainClusterFlowNode[] = domainNodes.map((node) => {
-    const meta = getDomainMeta(node);
-    const data = {
-      label: node.name,
-      summary: node.summary,
-      entities: meta?.entities as string[] | undefined,
-      flowCount: flowCountMap.get(node.id) ?? 0,
-      businessRules: meta?.businessRules as string[] | undefined,
-      domainId: node.id,
-    };
-    dims.set(node.id, { width: 320, height: 180 });
-    return {
-      id: node.id,
-      type: "domain-cluster" as const,
-      position: { x: 0, y: 0 },
-      data,
-    };
-  });
+function buildDomainOverviewRoute(graph: KnowledgeGraph): {
+  domains: DomainOverviewRouteDomain[];
+  handoffs: DomainHandoff[];
+} {
+  const domainNodes = graph.nodes.filter((n) => n.type === "domain");
+  const flowCountMap = getDomainFlowCounts(graph);
+  const handoffs = buildDomainHandoffs(graph);
 
-  const rfEdges: Edge[] = buildDomainHandoffs(graph)
-    .map((handoff) => ({
-      id: `cd-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`,
-      type: "domain-handoff",
-      source: handoff.sourceId,
-      target: handoff.targetId,
-      label: handoff.badge,
-      style: { stroke: "var(--color-accent)", strokeDasharray: "6 3", strokeWidth: 2 },
-      animated: true,
-    }));
-
-  return { nodes: rfNodes as unknown as Node[], edges: rfEdges, dims };
+  return {
+    domains: domainNodes.map((node) => {
+      const meta = getDomainMeta(node);
+      return {
+        id: node.id,
+        label: node.name,
+        summary: node.summary,
+        entities: meta?.entities as string[] | undefined,
+        flowCount: flowCountMap.get(node.id) ?? 0,
+        businessRules: meta?.businessRules as string[] | undefined,
+        incomingHandoffs: handoffs.filter((handoff) => handoff.targetId === node.id),
+        outgoingHandoffs: handoffs.filter((handoff) => handoff.sourceId === node.id),
+      };
+    }),
+    handoffs,
+  };
 }
 
 function buildDomainDetail(
@@ -272,6 +274,103 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
   );
 }
 
+function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
+  const selectNode = useDashboardStore((s) => s.selectNode);
+  const navigateToDomain = useDashboardStore((s) => s.navigateToDomain);
+  const selectedNodeId = useDashboardStore((s) => s.selectedNodeId);
+  const { domains } = useMemo(() => buildDomainOverviewRoute(graph), [graph]);
+
+  return (
+    <div
+      className="h-full overflow-auto p-3"
+      data-testid="domain-overview-route-map"
+    >
+      <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {domains.map((domain, index) => {
+          const isSelected = selectedNodeId === domain.id;
+          return (
+            <button
+              key={domain.id}
+              type="button"
+              onClick={() => selectNode(domain.id)}
+              onDoubleClick={() => navigateToDomain(domain.id)}
+              className={`h-[150px] overflow-hidden rounded-lg border p-3 text-left transition-colors ${
+                isSelected
+                  ? "border-accent bg-accent/10 shadow-lg shadow-accent/10"
+                  : "border-accent/35 bg-surface/90 hover:border-accent/65 hover:bg-elevated/80"
+              }`}
+              data-domain-id={domain.id}
+              data-testid="domain-overview-route-card"
+            >
+              <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="mb-1 text-[10px] font-mono font-semibold uppercase tracking-wide text-text-muted">
+                    Domain {index + 1}
+                  </div>
+                  <div className="font-heading text-sm font-semibold text-accent">
+                    {domain.label}
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-full border border-border-subtle bg-elevated px-2 py-0.5 text-[10px] font-medium text-text-secondary">
+                  {domain.flowCount} flow{domain.flowCount !== 1 ? "s" : ""}
+                </div>
+              </div>
+
+              <div className="mb-1.5 line-clamp-2 text-[11px] leading-snug text-text-secondary">
+                {domain.summary}
+              </div>
+
+              {domain.entities && domain.entities.length > 0 ? (
+                <div className="mb-1.5 flex max-h-5 flex-wrap gap-1 overflow-hidden">
+                  {domain.entities.slice(0, 3).map((entity) => (
+                    <span
+                      key={entity}
+                      className="rounded bg-elevated px-1.5 py-0.5 text-[10px] text-text-secondary"
+                    >
+                      {entity}
+                    </span>
+                  ))}
+                  {domain.entities.length > 3 ? (
+                    <span className="text-[10px] text-text-muted">
+                      +{domain.entities.length - 3}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="space-y-1 border-t border-border-subtle pt-1.5">
+                {[...domain.incomingHandoffs, ...domain.outgoingHandoffs].map((handoff) => (
+                  <div
+                    key={`${domain.id}-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`}
+                    className="flex gap-2 text-[10px] leading-snug text-text-secondary"
+                    data-testid="domain-overview-route-handoff"
+                  >
+                    <span className="mt-0.5 h-4 min-w-4 rounded-full bg-accent/20 text-center font-mono font-semibold leading-4 text-accent">
+                      {handoff.badge}
+                    </span>
+                    <span className="line-clamp-1">
+                      {handoff.sourceId === domain.id ? (
+                        <span className="font-semibold text-text-primary">
+                          To {handoff.targetName}:{" "}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-text-primary">
+                          From {handoff.sourceName}:{" "}
+                        </span>
+                      )}
+                      {handoff.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DomainGraphViewInner() {
   const domainGraph = useDashboardStore((s) => s.domainGraph);
   const activeDomainId = useDashboardStore((s) => s.activeDomainId);
@@ -284,10 +383,8 @@ function DomainGraphViewInner() {
   // effect.
   const built = useMemo<BuiltGraph | null>(() => {
     if (!domainGraph) return null;
-    if (activeDomainId) {
-      return buildDomainDetail(domainGraph, activeDomainId);
-    }
-    return buildDomainOverview(domainGraph);
+    if (!activeDomainId) return null;
+    return buildDomainDetail(domainGraph, activeDomainId);
   }, [domainGraph, activeDomainId]);
 
   const [layout, setLayout] = useState<{ nodes: Node[]; edges: Edge[] }>({
@@ -331,6 +428,7 @@ function DomainGraphViewInner() {
   const isOverview = !activeDomainId;
 
   useEffect(() => {
+    if (isOverview) return;
     if (nodes.length === 0) return;
     const readableZoom = isOverview ? DOMAIN_OVERVIEW_READABLE_ZOOM : DOMAIN_DETAIL_READABLE_ZOOM;
     const timeoutId = window.setTimeout(() => {
@@ -389,7 +487,7 @@ function DomainGraphViewInner() {
           className="relative min-h-0 overflow-hidden rounded-lg border border-border-subtle bg-root/40"
           data-testid="domain-overview-flow-shell"
         >
-          {flow}
+          <DomainOverviewRouteMap graph={domainGraph} />
         </div>
       </div>
     );
