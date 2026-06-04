@@ -125,6 +125,7 @@ interface DashboardStore {
   tourHighlightedNodeIds: string[];
 
   persona: Persona;
+  personaUserSelected: boolean;
 
   diffMode: boolean;
   changedNodeIds: Set<string>;
@@ -195,7 +196,7 @@ interface DashboardStore {
   domainGraph: KnowledgeGraph | null;
   activeDomainId: string | null;
 
-  setDomainGraph: (graph: KnowledgeGraph) => void;
+  setDomainGraph: (graph: KnowledgeGraph, options?: { preferOverview?: boolean }) => void;
   setViewMode: (mode: ViewMode) => void;
   setIsKnowledgeGraph: (value: boolean) => void;
   navigateToDomain: (domainId: string) => void;
@@ -309,6 +310,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   tourHighlightedNodeIds: [],
 
   persona: "junior",
+  personaUserSelected: false,
 
   diffMode: false,
   changedNodeIds: new Set<string>(),
@@ -541,6 +543,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   setPersona: (persona) =>
     set({
       persona,
+      personaUserSelected: true,
       // Persona changes filter node types, which shifts container.nodeIds.
       containerLayoutCache: new Map(),
       containerSizeMemory: new Map(),
@@ -686,12 +689,20 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   domainGraph: null,
   activeDomainId: null,
 
-  setDomainGraph: (graph) => {
+  setDomainGraph: (graph, options = {}) => {
     const state = get();
+    const applyDomainEntry =
+      Boolean(options.preferOverview) &&
+      !state.viewModeUserSelected &&
+      !state.isKnowledgeGraph;
     set({
       domainGraph: graph,
       viewMode: !state.viewModeUserSelected && !state.isKnowledgeGraph ? "domain" : state.viewMode,
       activeDomainId: !state.viewModeUserSelected && !state.isKnowledgeGraph ? null : state.activeDomainId,
+      persona: applyDomainEntry && !state.personaUserSelected ? "non-technical" : state.persona,
+      tourActive: applyDomainEntry ? false : state.tourActive,
+      tourHighlightedNodeIds: applyDomainEntry ? [] : state.tourHighlightedNodeIds,
+      tourFitPending: applyDomainEntry ? false : state.tourFitPending,
     });
   },
 

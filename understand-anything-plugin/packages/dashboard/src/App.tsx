@@ -24,7 +24,8 @@ import { ThemeProvider } from "./themes/index.ts";
 import { ThemePicker } from "./components/ThemePicker.tsx";
 import type { ThemeConfig } from "./themes/index.ts";
 import { I18nProvider, useI18n } from "./contexts/I18nContext.tsx";
-import { shouldAutoStartTour } from "./utils/autoStartTour";
+import { shouldAutoStartTour, shouldPreferDomainOverview } from "./utils/autoStartTour";
+import { ONBOARDING_DISMISSED_KEY, shouldShowOnboarding } from "./utils/onboarding";
 
 // Lazy-load heavy / optional components so they ship in separate chunks.
 const CodeViewer = lazy(() => import("./components/CodeViewer"));
@@ -37,15 +38,7 @@ const OnboardingOverlay = lazy(() => import("./components/OnboardingOverlay"));
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 const SESSION_TOKEN_KEY = "understand-anything-token";
-const ONBOARDING_DISMISSED_KEY = "ua-onboarding-dismissed-v1";
 type SidebarTab = "info" | "files";
-
-function shouldShowOnboarding(): boolean {
-  if (typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("onboard") === "force") return true;
-  return window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "1";
-}
 
 /** Resolve data file URL — in demo mode, use env var URLs; otherwise use local paths with token. */
 function dataUrl(fileName: string, token: string | null): string {
@@ -204,7 +197,7 @@ function Dashboard({ accessToken }: { accessToken: string }) {
         if (!data) return;
         const result = validateGraph(data);
         if (result.success && result.data) {
-          setDomainGraph(result.data);
+          setDomainGraph(result.data, { preferOverview: shouldPreferDomainOverview() });
         } else if (result.fatal) {
           console.warn(`[domain-graph] validation failed: ${result.fatal}`);
         }
