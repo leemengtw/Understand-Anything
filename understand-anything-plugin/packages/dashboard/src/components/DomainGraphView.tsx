@@ -244,13 +244,14 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
         Domain handoffs
       </div>
-      <div className="grid gap-1.5 md:grid-cols-2">
+      <div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
         {handoffs.map((handoff) => (
           <button
             key={`${handoff.sourceId}-${handoff.targetId}-${handoff.index}`}
             type="button"
             onClick={() => selectNode(handoff.targetId)}
             className="block w-full rounded-md border border-border-subtle bg-elevated/80 px-2.5 py-2 text-left transition-colors hover:border-accent/40 hover:bg-accent/10"
+            data-testid="domain-overview-handoff-row"
           >
             <div className="mb-1 flex min-w-0 items-center gap-1.5 text-[10px]">
               <span className="rounded-full bg-accent/20 px-1.5 py-0.5 font-mono font-semibold text-accent">
@@ -282,19 +283,20 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
 
   return (
     <div
-      className="h-full overflow-auto p-3"
+      className="h-full overflow-auto p-2"
       data-testid="domain-overview-route-map"
     >
-      <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-3">
         {domains.map((domain, index) => {
           const isSelected = selectedNodeId === domain.id;
+          const cardHandoffs = [...domain.incomingHandoffs, ...domain.outgoingHandoffs];
           return (
             <button
               key={domain.id}
               type="button"
               onClick={() => selectNode(domain.id)}
               onDoubleClick={() => navigateToDomain(domain.id)}
-              className={`h-[150px] overflow-hidden rounded-lg border p-3 text-left transition-colors ${
+              className={`flex min-h-[150px] flex-col rounded-lg border p-2.5 text-left transition-colors ${
                 isSelected
                   ? "border-accent bg-accent/10 shadow-lg shadow-accent/10"
                   : "border-accent/35 bg-surface/90 hover:border-accent/65 hover:bg-elevated/80"
@@ -338,31 +340,44 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                 </div>
               ) : null}
 
-              <div className="space-y-1 border-t border-border-subtle pt-1.5">
-                {[...domain.incomingHandoffs, ...domain.outgoingHandoffs].map((handoff) => (
+              {cardHandoffs.length > 0 ? (
+                <div className="mt-auto border-t border-border-subtle pt-1.5">
                   <div
-                    key={`${domain.id}-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`}
-                    className="flex gap-2 text-[10px] leading-snug text-text-secondary"
-                    data-testid="domain-overview-route-handoff"
+                    className="flex flex-wrap gap-1"
+                    data-testid="domain-overview-route-handoffs"
                   >
-                    <span className="mt-0.5 h-4 min-w-4 rounded-full bg-accent/20 text-center font-mono font-semibold leading-4 text-accent">
-                      {handoff.badge}
-                    </span>
-                    <span className="line-clamp-1">
-                      {handoff.sourceId === domain.id ? (
-                        <span className="font-semibold text-text-primary">
-                          To {handoff.targetName}:{" "}
+                    {cardHandoffs.slice(0, 2).map((handoff) => {
+                      const isOutgoing = handoff.sourceId === domain.id;
+                      return (
+                        <span
+                          key={`${domain.id}-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`}
+                          className="flex max-w-full items-center gap-1 rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-secondary"
+                          data-testid="domain-overview-route-handoff"
+                          title={`${isOutgoing ? "To" : "From"} ${
+                            isOutgoing ? handoff.targetName : handoff.sourceName
+                          }: ${handoff.description}`}
+                        >
+                          <span className="h-4 min-w-4 rounded-full bg-accent/20 text-center font-mono font-semibold leading-4 text-accent">
+                            {handoff.badge}
+                          </span>
+                          <span className="truncate">
+                            <span className="font-semibold text-text-primary">
+                              {isOutgoing ? "To" : "From"}
+                            </span>{" "}
+                            {isOutgoing ? handoff.targetName : handoff.sourceName}
+                          </span>
                         </span>
-                      ) : (
-                        <span className="font-semibold text-text-primary">
-                          From {handoff.sourceName}:{" "}
-                        </span>
-                      )}
-                      {handoff.description}
-                    </span>
+                      );
+                    })}
+                    {cardHandoffs.length > 2 ? (
+                      <span className="rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-muted">
+                        +{cardHandoffs.length - 2} handoff
+                        {cardHandoffs.length - 2 !== 1 ? "s" : ""}
+                      </span>
+                    ) : null}
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : null}
             </button>
           );
         })}
