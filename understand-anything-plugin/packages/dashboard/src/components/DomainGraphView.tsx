@@ -21,6 +21,7 @@ import { useDashboardStore } from "../store";
 import { useI18n } from "../contexts/I18nContext";
 import { mergeElkPositions, nodesToElkInput } from "../utils/layout";
 import { applyElkLayout } from "../utils/elk-layout";
+import { buildDomainHandoffs } from "../utils/domainHandoffs";
 import type { KnowledgeGraph, GraphNode } from "@understand-anything/core/types";
 
 const nodeTypes = {
@@ -33,17 +34,9 @@ const DOMAIN_OVERVIEW_READABLE_ZOOM = 0.72;
 const DOMAIN_DETAIL_READABLE_ZOOM = 0.82;
 const DOMAIN_OVERVIEW_MIN_ZOOM = 0.25;
 const DOMAIN_DETAIL_MIN_ZOOM = 0.35;
-const DOMAIN_OVERVIEW_LABEL_MAX_CHARS = 48;
 
 function getDomainMeta(node: GraphNode) {
   return node.domainMeta;
-}
-
-function compactDomainOverviewLabel(label: string | undefined): string | undefined {
-  const normalized = label?.trim().replace(/\s+/g, " ");
-  if (!normalized) return undefined;
-  if (normalized.length <= DOMAIN_OVERVIEW_LABEL_MAX_CHARS) return normalized;
-  return `${normalized.slice(0, DOMAIN_OVERVIEW_LABEL_MAX_CHARS - 1).trimEnd()}...`;
 }
 
 function nodeCenterForReadableEntry(node: Node): { x: number; y: number } {
@@ -92,18 +85,17 @@ function buildDomainOverview(graph: KnowledgeGraph): BuiltGraph {
     };
   });
 
-  const rfEdges: Edge[] = graph.edges
-    .filter((e) => e.type === "cross_domain")
-    .map((e, i) => ({
-      id: `cd-${i}-${e.source}-${e.target}`,
-      source: e.source,
-      target: e.target,
-      label: compactDomainOverviewLabel(e.description),
+  const rfEdges: Edge[] = buildDomainHandoffs(graph)
+    .map((handoff) => ({
+      id: `cd-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`,
+      source: handoff.sourceId,
+      target: handoff.targetId,
+      label: handoff.badge,
       style: { stroke: "var(--color-accent)", strokeDasharray: "6 3", strokeWidth: 2 },
-      labelStyle: { fill: "var(--color-text-secondary)", fontSize: 11, fontWeight: 500 },
+      labelStyle: { fill: "var(--color-text-primary)", fontSize: 10, fontWeight: 700 },
       labelBgStyle: { fill: "var(--color-surface)", fillOpacity: 0.9 },
-      labelBgPadding: [8, 4] as [number, number],
-      labelBgBorderRadius: 4,
+      labelBgPadding: [6, 3] as [number, number],
+      labelBgBorderRadius: 999,
       animated: true,
     }));
 
@@ -185,6 +177,50 @@ function buildDomainDetail(
   }));
 
   return { nodes: rfNodes, edges: rfEdges, dims };
+}
+
+function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
+  const selectNode = useDashboardStore((s) => s.selectNode);
+  const handoffs = useMemo(() => buildDomainHandoffs(graph), [graph]);
+
+  if (handoffs.length === 0) return null;
+
+  return (
+    <div
+      className="absolute left-3 top-3 z-10 max-h-[170px] w-[min(680px,calc(100%-1.5rem))] overflow-auto rounded-lg border border-border-subtle bg-surface/95 p-3 shadow-lg shadow-black/15 backdrop-blur"
+      data-testid="domain-overview-handoffs"
+    >
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+        Domain handoffs
+      </div>
+      <div className="space-y-1.5">
+        {handoffs.map((handoff) => (
+          <button
+            key={`${handoff.sourceId}-${handoff.targetId}-${handoff.index}`}
+            type="button"
+            onClick={() => selectNode(handoff.targetId)}
+            className="block w-full rounded-md border border-border-subtle bg-elevated/80 px-2.5 py-2 text-left transition-colors hover:border-accent/40 hover:bg-accent/10"
+          >
+            <div className="mb-1 flex min-w-0 items-center gap-1.5 text-[10px]">
+              <span className="rounded-full bg-accent/20 px-1.5 py-0.5 font-mono font-semibold text-accent">
+                {handoff.badge}
+              </span>
+              <span className="truncate font-semibold text-text-primary">
+                {handoff.sourceName}
+              </span>
+              <span className="text-text-muted">-&gt;</span>
+              <span className="truncate font-semibold text-text-primary">
+                {handoff.targetName}
+              </span>
+            </div>
+            <div className="text-[11px] leading-snug text-text-secondary">
+              {handoff.description}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function DomainGraphViewInner() {
@@ -274,6 +310,7 @@ function DomainGraphViewInner() {
 
   return (
     <div className="h-full w-full relative">
+      {isOverview && domainGraph && <DomainOverviewHandoffList graph={domainGraph} />}
       {activeDomainId && (
         <div className="absolute top-3 left-3 z-10">
           <button

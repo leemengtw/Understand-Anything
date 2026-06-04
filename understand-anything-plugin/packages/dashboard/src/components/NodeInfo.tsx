@@ -572,16 +572,23 @@ export default function NodeInfo() {
               return (
                 <div
                   key={`${row.edge.source}-${row.edge.target}-${row.edge.type}-${row.index}`}
-                  className="text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle flex items-center gap-2 cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-colors"
+                  className="text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-colors"
                   onClick={() => {
                     navigateToNode(row.otherId);
                   }}
                 >
-                  <span className="text-gold font-mono">{arrow}</span>
-                  <span className="text-text-muted">{dirLabel}</span>
-                  <span className="text-text-primary truncate">
-                    {row.otherName}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gold font-mono">{arrow}</span>
+                    <span className="text-text-muted">{dirLabel}</span>
+                    <span className="text-text-primary truncate">
+                      {row.otherName}
+                    </span>
+                  </div>
+                  {row.edge.description ? (
+                    <div className="mt-1 pl-5 text-[11px] leading-snug text-text-secondary">
+                      {row.edge.description}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
