@@ -262,6 +262,7 @@ function DashboardContent({
   const layoutIssues = useDashboardStore((s) => s.layoutIssues);
   const isMobile = useIsMobile();
   const { t } = useI18n();
+  const shouldHideSidebarForDomainOverview = viewMode === "domain" && Boolean(domainGraph) && !selectedNodeId;
   const allIssues = useMemo(
     () => [...graphIssues, ...layoutIssues],
     [graphIssues, layoutIssues],
@@ -711,9 +712,11 @@ function DashboardContent({
         </div>
 
         {/* Right sidebar — telescopes at narrower widths */}
-        <aside className="w-[260px] md:w-[300px] lg:w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-hidden">
-          {sidebarContent}
-        </aside>
+        {!shouldHideSidebarForDomainOverview && (
+          <aside className="w-[260px] md:w-[300px] lg:w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-hidden">
+            {sidebarContent}
+          </aside>
+        )}
       </div>
 
       {/* Expanded code viewer modal */}

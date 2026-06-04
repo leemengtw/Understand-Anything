@@ -6,6 +6,7 @@ import {
   BackgroundVariant,
   Controls,
   MiniMap,
+  useReactFlow,
 } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -28,8 +29,30 @@ const nodeTypes = {
   "step-node": StepNode,
 };
 
+const DOMAIN_OVERVIEW_READABLE_ZOOM = 0.72;
+const DOMAIN_DETAIL_READABLE_ZOOM = 0.82;
+const DOMAIN_OVERVIEW_MIN_ZOOM = 0.25;
+const DOMAIN_DETAIL_MIN_ZOOM = 0.35;
+const DOMAIN_OVERVIEW_LABEL_MAX_CHARS = 48;
+
 function getDomainMeta(node: GraphNode) {
   return node.domainMeta;
+}
+
+function compactDomainOverviewLabel(label: string | undefined): string | undefined {
+  const normalized = label?.trim().replace(/\s+/g, " ");
+  if (!normalized) return undefined;
+  if (normalized.length <= DOMAIN_OVERVIEW_LABEL_MAX_CHARS) return normalized;
+  return `${normalized.slice(0, DOMAIN_OVERVIEW_LABEL_MAX_CHARS - 1).trimEnd()}...`;
+}
+
+function nodeCenterForReadableEntry(node: Node): { x: number; y: number } {
+  const width = typeof node.measured?.width === "number" ? node.measured.width : node.width ?? 320;
+  const height = typeof node.measured?.height === "number" ? node.measured.height : node.height ?? 180;
+  return {
+    x: node.position.x + width / 2,
+    y: node.position.y + height / 2,
+  };
 }
 
 interface BuiltGraph {
@@ -75,11 +98,11 @@ function buildDomainOverview(graph: KnowledgeGraph): BuiltGraph {
       id: `cd-${i}-${e.source}-${e.target}`,
       source: e.source,
       target: e.target,
-      label: e.description ?? "",
+      label: compactDomainOverviewLabel(e.description),
       style: { stroke: "var(--color-accent)", strokeDasharray: "6 3", strokeWidth: 2 },
-      labelStyle: { fill: "var(--color-text-muted)", fontSize: 10 },
+      labelStyle: { fill: "var(--color-text-secondary)", fontSize: 11, fontWeight: 500 },
       labelBgStyle: { fill: "var(--color-surface)", fillOpacity: 0.9 },
-      labelBgPadding: [6, 4] as [number, number],
+      labelBgPadding: [8, 4] as [number, number],
       labelBgBorderRadius: 4,
       animated: true,
     }));
@@ -168,6 +191,7 @@ function DomainGraphViewInner() {
   const domainGraph = useDashboardStore((s) => s.domainGraph);
   const activeDomainId = useDashboardStore((s) => s.activeDomainId);
   const clearActiveDomain = useDashboardStore((s) => s.clearActiveDomain);
+  const reactFlow = useReactFlow();
   const { t } = useI18n();
 
   // Build structural nodes/edges/dims synchronously; only the layout call
@@ -219,6 +243,24 @@ function DomainGraphViewInner() {
   }, [built]);
 
   const { nodes, edges } = layout;
+  const isOverview = !activeDomainId;
+
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const readableZoom = isOverview ? DOMAIN_OVERVIEW_READABLE_ZOOM : DOMAIN_DETAIL_READABLE_ZOOM;
+    const timeoutId = window.setTimeout(() => {
+      if (reactFlow.getZoom() >= readableZoom * 0.98) return;
+      const anchorNode = nodes.reduce((leftMost, node) =>
+        node.position.x < leftMost.position.x ? node : leftMost,
+      );
+      const center = nodeCenterForReadableEntry(anchorNode);
+      void reactFlow.setCenter(center.x, center.y, {
+        zoom: readableZoom,
+        duration: 0,
+      });
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [isOverview, nodes, reactFlow]);
 
   // Double-click is handled by individual node components (e.g. DomainClusterNode)
 
@@ -249,7 +291,7 @@ function DomainGraphViewInner() {
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.1}
+        minZoom={isOverview ? DOMAIN_OVERVIEW_MIN_ZOOM : DOMAIN_DETAIL_MIN_ZOOM}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
