@@ -253,19 +253,33 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
             className="block w-full rounded-md border border-border-subtle bg-elevated/80 px-2.5 py-2 text-left transition-colors hover:border-accent/40 hover:bg-accent/10"
             data-testid="domain-overview-handoff-row"
           >
-            <div className="mb-1 flex min-w-0 items-center gap-1.5 text-[10px]">
+            <div className="mb-1 flex min-w-0 items-start gap-1.5 text-[10px]">
               <span className="rounded-full bg-accent/20 px-1.5 py-0.5 font-mono font-semibold text-accent">
                 {handoff.badge}
               </span>
-              <span className="truncate font-semibold text-text-primary">
-                {handoff.sourceName}
-              </span>
-              <span className="text-text-muted">-&gt;</span>
-              <span className="truncate font-semibold text-text-primary">
-                {handoff.targetName}
+              <span
+                className="min-w-0 flex-1 leading-snug"
+                data-testid="domain-overview-handoff-route"
+              >
+                <span
+                  className="font-semibold text-text-primary"
+                  data-testid="domain-overview-handoff-source"
+                >
+                  {handoff.sourceName}
+                </span>
+                <span className="mx-1 text-text-muted">-&gt;</span>
+                <span
+                  className="font-semibold text-text-primary"
+                  data-testid="domain-overview-handoff-target"
+                >
+                  {handoff.targetName}
+                </span>
               </span>
             </div>
-            <div className="text-[11px] leading-snug text-text-secondary">
+            <div
+              className="text-[11px] leading-snug text-text-secondary"
+              data-testid="domain-overview-handoff-description"
+            >
               {handoff.description}
             </div>
           </button>
@@ -318,7 +332,10 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                 </div>
               </div>
 
-              <div className="mb-1.5 line-clamp-2 text-[11px] leading-snug text-text-secondary">
+              <div
+                className="mb-1.5 text-[11px] leading-snug text-text-secondary"
+                data-testid="domain-overview-route-summary"
+              >
                 {domain.summary}
               </div>
 
@@ -351,7 +368,7 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                       return (
                         <span
                           key={`${domain.id}-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`}
-                          className="flex max-w-full items-center gap-1 rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-secondary"
+                          className="flex max-w-full items-start gap-1 rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-secondary"
                           data-testid="domain-overview-route-handoff"
                           title={`${isOutgoing ? "To" : "From"} ${
                             isOutgoing ? handoff.targetName : handoff.sourceName
@@ -360,7 +377,7 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                           <span className="h-4 min-w-4 rounded-full bg-accent/20 text-center font-mono font-semibold leading-4 text-accent">
                             {handoff.badge}
                           </span>
-                          <span className="truncate">
+                          <span className="min-w-0 leading-snug">
                             <span className="font-semibold text-text-primary">
                               {isOutgoing ? "To" : "From"}
                             </span>{" "}
