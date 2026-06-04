@@ -190,6 +190,7 @@ interface DashboardStore {
 
   // View mode
   viewMode: ViewMode;
+  viewModeUserSelected: boolean;
   isKnowledgeGraph: boolean;
   domainGraph: KnowledgeGraph | null;
   activeDomainId: string | null;
@@ -680,12 +681,18 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   },
 
   viewMode: "structural",
+  viewModeUserSelected: false,
   isKnowledgeGraph: false,
   domainGraph: null,
   activeDomainId: null,
 
   setDomainGraph: (graph) => {
-    set({ domainGraph: graph });
+    const state = get();
+    set({
+      domainGraph: graph,
+      viewMode: !state.viewModeUserSelected && !state.isKnowledgeGraph ? "domain" : state.viewMode,
+      activeDomainId: !state.viewModeUserSelected && !state.isKnowledgeGraph ? null : state.activeDomainId,
+    });
   },
 
   setIsKnowledgeGraph: (value) => {
@@ -695,6 +702,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   setViewMode: (mode) => {
     set({
       viewMode: mode,
+      viewModeUserSelected: true,
       selectedNodeId: null,
       focusNodeId: null,
       codeViewerOpen: false,
