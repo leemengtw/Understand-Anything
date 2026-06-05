@@ -103,6 +103,12 @@ export const en = {
   },
   domainView: {
     backToDomains: "Back to domains",
+    handoffs: "Domain handoffs",
+    domainNumber: "Domain",
+    flows: "flows",
+    to: "To",
+    from: "From",
+    handoff: "handoff",
   },
   detailLevel: {
     filesTitle: "Files only — architecture-level dependencies (fast)",

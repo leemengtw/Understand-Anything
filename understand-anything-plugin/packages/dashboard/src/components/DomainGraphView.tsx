@@ -235,6 +235,7 @@ function buildDomainDetail(
 
 function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
   const selectNode = useDashboardStore((s) => s.selectNode);
+  const { t } = useI18n();
   const handoffs = useMemo(() => buildDomainHandoffs(graph), [graph]);
 
   if (handoffs.length === 0) return null;
@@ -245,7 +246,7 @@ function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
       data-testid="domain-overview-handoffs"
     >
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-        Domain handoffs
+        {t.domainView.handoffs}
       </div>
       <div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
         {handoffs.map((handoff) => (
@@ -296,6 +297,7 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
   const selectNode = useDashboardStore((s) => s.selectNode);
   const navigateToDomain = useDashboardStore((s) => s.navigateToDomain);
   const selectedNodeId = useDashboardStore((s) => s.selectedNodeId);
+  const { t } = useI18n();
   const { domains } = useMemo(() => buildDomainOverviewRoute(graph), [graph]);
 
   return (
@@ -319,19 +321,21 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                   : "border-accent/35 bg-surface/90 hover:border-accent/65 hover:bg-elevated/80"
               }`}
               data-domain-id={domain.id}
+              data-domain-label={domain.label}
+              data-domain-order={index + 1}
               data-testid="domain-overview-route-card"
             >
               <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="mb-1 text-[10px] font-mono font-semibold uppercase tracking-wide text-text-muted">
-                    Domain {index + 1}
+                    {t.domainView.domainNumber} {index + 1}
                   </div>
                   <div className="font-heading text-sm font-semibold text-accent">
                     {domain.label}
                   </div>
                 </div>
                 <div className="shrink-0 rounded-full border border-border-subtle bg-elevated px-2 py-0.5 text-[10px] font-medium text-text-secondary">
-                  {domain.flowCount} flow{domain.flowCount !== 1 ? "s" : ""}
+                  {domain.flowCount} {t.domainView.flows}
                 </div>
               </div>
 
@@ -372,6 +376,8 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                         <span
                           key={`${domain.id}-${handoff.index}-${handoff.sourceId}-${handoff.targetId}`}
                           className="flex max-w-full items-start gap-1 rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-secondary"
+                          data-domain-handoff-direction={isOutgoing ? "outgoing" : "incoming"}
+                          data-domain-handoff-target={isOutgoing ? handoff.targetName : handoff.sourceName}
                           data-testid="domain-overview-route-handoff"
                           title={`${isOutgoing ? "To" : "From"} ${
                             isOutgoing ? handoff.targetName : handoff.sourceName
@@ -382,7 +388,7 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                           </span>
                           <span className="min-w-0 leading-snug">
                             <span className="font-semibold text-text-primary">
-                              {isOutgoing ? "To" : "From"}
+                              {isOutgoing ? t.domainView.to : t.domainView.from}
                             </span>{" "}
                             {isOutgoing ? handoff.targetName : handoff.sourceName}
                           </span>
@@ -391,8 +397,7 @@ function DomainOverviewRouteMap({ graph }: { graph: KnowledgeGraph }) {
                     })}
                     {cardHandoffs.length > 2 ? (
                       <span className="rounded bg-elevated px-1.5 py-0.5 text-[10px] leading-4 text-text-muted">
-                        +{cardHandoffs.length - 2} handoff
-                        {cardHandoffs.length - 2 !== 1 ? "s" : ""}
+                        +{cardHandoffs.length - 2} {t.domainView.handoff}
                       </span>
                     ) : null}
                   </div>

@@ -103,6 +103,12 @@ export const zhTW = {
   },
   domainView: {
     backToDomains: "返回領域列表",
+    handoffs: "領域交接",
+    domainNumber: "領域",
+    flows: "流程",
+    to: "到",
+    from: "來自",
+    handoff: "交接",
   },
   detailLevel: {
     filesTitle: "僅檔案 — 架構級依賴（快速）",

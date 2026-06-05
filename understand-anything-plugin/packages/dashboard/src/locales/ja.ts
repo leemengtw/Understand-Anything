@@ -103,6 +103,12 @@ export const ja = {
   },
   domainView: {
     backToDomains: "ドメインに戻る",
+    handoffs: "ドメイン連携",
+    domainNumber: "ドメイン",
+    flows: "フロー",
+    to: "先",
+    from: "元",
+    handoff: "連携",
   },
   detailLevel: {
     filesTitle: "ファイルのみ — アーキテクチャレベルの依存関係（高速）",

@@ -103,6 +103,12 @@ export const ko = {
   },
   domainView: {
     backToDomains: "도메인으로 돌아가기",
+    handoffs: "도메인 인계",
+    domainNumber: "도메인",
+    flows: "플로우",
+    to: "대상",
+    from: "출처",
+    handoff: "인계",
   },
   detailLevel: {
     filesTitle: "파일만 — 아키텍처 레벨 의존성 (빠름)",

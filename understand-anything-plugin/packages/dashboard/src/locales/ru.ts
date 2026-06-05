@@ -103,6 +103,12 @@ export const ru = {
   },
   domainView: {
     backToDomains: "Назад к доменам",
+    handoffs: "Передачи доменов",
+    domainNumber: "Домен",
+    flows: "потоки",
+    to: "К",
+    from: "От",
+    handoff: "передача",
   },
   detailLevel: {
     filesTitle: "Только файлы — зависимости архитектурного уровня (быстро)",
