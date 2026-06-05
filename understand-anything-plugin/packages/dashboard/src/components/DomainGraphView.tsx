@@ -167,15 +167,18 @@ function buildDomainDetail(
   const stepIds = new Set(stepEdges.map((e) => e.target));
   const stepNodes = graph.nodes.filter((n) => stepIds.has(n.id));
 
-  // Display flow-local step numbers as 1..N. Edge weights preserve source order,
-  // but showing raw weighted labels creates gaps that make domain walkthroughs
-  // look non-sequential.
+  // Display flow-local step numbers as 1..N. Edge weights may be global across
+  // multiple flows; showing those raw/global labels inside each flow creates
+  // gaps such as 1,3,5,7 that make walkthroughs look non-sequential.
   const stepOrderMap = new Map<string, number>();
-  [...stepEdges]
-    .sort((a, b) => a.weight - b.weight || a.target.localeCompare(b.target))
-    .forEach((edge, index) => {
-      stepOrderMap.set(edge.target, index + 1);
-    });
+  for (const flowId of flowIds) {
+    stepEdges
+      .filter((edge) => edge.source === flowId)
+      .sort((a, b) => a.weight - b.weight || a.target.localeCompare(b.target))
+      .forEach((edge, index) => {
+        stepOrderMap.set(edge.target, index + 1);
+      });
+  }
 
   // Count steps per flow
   const stepCountMap = new Map<string, number>();
