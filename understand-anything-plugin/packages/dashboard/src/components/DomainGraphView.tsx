@@ -21,8 +21,6 @@ import StepNode from "./StepNode";
 import type { StepFlowNode } from "./StepNode";
 import { useDashboardStore } from "../store";
 import { useI18n } from "../contexts/I18nContext";
-import { mergeElkPositions, nodesToElkInput } from "../utils/layout";
-import { applyElkLayout } from "../utils/elk-layout";
 import { buildDomainHandoffs } from "../utils/domainHandoffs";
 import type { DomainHandoff } from "../utils/domainHandoffs";
 import type { KnowledgeGraph, GraphNode } from "@understand-anything/core/types";
@@ -233,6 +231,57 @@ function buildDomainDetail(
   return { nodes: rfNodes, edges: rfEdges, dims };
 }
 
+function layoutDomainDetailInFlowOrder(built: BuiltGraph): { nodes: Node[]; edges: Edge[] } {
+  const flowNodes = built.nodes.filter((node) => node.type === "flow-node");
+  const stepNodesByFlow = new Map<string, Node[]>();
+  for (const edge of built.edges) {
+    const target = built.nodes.find((node) => node.id === edge.target);
+    if (!target || target.type !== "step-node") continue;
+    const steps = stepNodesByFlow.get(edge.source) ?? [];
+    steps.push(target);
+    stepNodesByFlow.set(edge.source, steps);
+  }
+
+  const positionedNodes: Node[] = [];
+  let cursorY = 24;
+  const flowX = 24;
+  const stepX = 360;
+  const stepGapY = 120;
+  const flowGapY = 78;
+
+  for (const flowNode of flowNodes) {
+    const flowDims = built.dims.get(flowNode.id) ?? { width: 260, height: 120 };
+    const orderedSteps = [...(stepNodesByFlow.get(flowNode.id) ?? [])].sort((a, b) => {
+      const leftOrder = typeof a.data?.order === "number" ? a.data.order : Number.MAX_SAFE_INTEGER;
+      const rightOrder = typeof b.data?.order === "number" ? b.data.order : Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || String(a.id).localeCompare(String(b.id));
+    });
+    const groupHeight = Math.max(flowDims.height, Math.max(1, orderedSteps.length) * stepGapY - 30);
+    positionedNodes.push({
+      ...flowNode,
+      position: {
+        x: flowX,
+        y: cursorY + Math.max(0, (groupHeight - flowDims.height) / 2),
+      },
+    });
+    orderedSteps.forEach((node, index) => {
+      positionedNodes.push({
+        ...node,
+        position: {
+          x: stepX,
+          y: cursorY + index * stepGapY,
+        },
+      });
+    });
+    cursorY += groupHeight + flowGapY;
+  }
+
+  return {
+    nodes: positionedNodes,
+    edges: built.edges,
+  };
+}
+
 function DomainOverviewHandoffList({ graph }: { graph: KnowledgeGraph }) {
   const selectNode = useDashboardStore((s) => s.selectNode);
   const { t } = useI18n();
@@ -437,31 +486,7 @@ function DomainGraphViewInner() {
       setLayout({ nodes: [], edges: [] });
       return;
     }
-    let cancelled = false;
-    const { nodes: nodesArray, edges: edgesArray, dims } = built;
-    // DomainGraphView used dagre LR; preserve that direction with ELK.
-    const elkInput = nodesToElkInput(nodesArray, edgesArray, dims, {
-      "elk.direction": "RIGHT",
-    });
-    applyElkLayout(elkInput, { strict: import.meta.env.DEV })
-      .then(({ positioned, issues }) => {
-        if (cancelled) return;
-        if (issues.length > 0) {
-          // Funnel into store so WarningBanner surfaces them.
-          useDashboardStore.getState().appendLayoutIssues(issues);
-        }
-        setLayout({
-          nodes: mergeElkPositions(nodesArray, positioned),
-          edges: edgesArray,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("[domain ELK] layout failed:", err);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setLayout(layoutDomainDetailInFlowOrder(built));
   }, [built]);
 
   const { nodes, edges } = layout;
