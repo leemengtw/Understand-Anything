@@ -51,7 +51,7 @@ function countByValue(values: string[]): Array<[string, number]> {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-function compareConnectionRowOrder<
+export function compareConnectionRowOrder<
   T extends {
     edge: { type: string; weight: number };
     otherType: string;

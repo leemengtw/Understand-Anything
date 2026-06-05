@@ -147,7 +147,7 @@ function buildDomainOverviewRoute(graph: KnowledgeGraph): {
   };
 }
 
-function buildDomainDetail(
+export function buildDomainDetail(
   graph: KnowledgeGraph,
   domainId: string,
 ): BuiltGraph {
@@ -231,7 +231,7 @@ function buildDomainDetail(
   return { nodes: rfNodes, edges: rfEdges, dims };
 }
 
-function layoutDomainDetailInFlowOrder(built: BuiltGraph): { nodes: Node[]; edges: Edge[] } {
+export function layoutDomainDetailInFlowOrder(built: BuiltGraph): { nodes: Node[]; edges: Edge[] } {
   const flowNodes = built.nodes.filter((node) => node.type === "flow-node");
   const stepNodesByFlow = new Map<string, Node[]>();
   for (const edge of built.edges) {
