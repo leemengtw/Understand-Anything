@@ -51,6 +51,29 @@ function countByValue(values: string[]): Array<[string, number]> {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
+function compareConnectionRowOrder<
+  T extends {
+    edge: { type: string; weight: number };
+    otherType: string;
+    otherName: string;
+  },
+>(a: T, b: T): number {
+  const typeOrder = String(a.edge.type).localeCompare(String(b.edge.type));
+  if (typeOrder !== 0) return typeOrder;
+
+  // Flow steps are a walkthrough, not a generic relationship bucket. Preserve
+  // graph edge order so the detail panel matches the actual workflow sequence.
+  if (a.edge.type === "flow_step" && b.edge.type === "flow_step") {
+    const weightOrder = a.edge.weight - b.edge.weight;
+    if (Number.isFinite(weightOrder) && weightOrder !== 0) return weightOrder;
+  }
+
+  return (
+    String(a.otherType).localeCompare(String(b.otherType)) ||
+    String(a.otherName).localeCompare(String(b.otherName))
+  );
+}
+
 function KnowledgeNodeDetails({ node, graph }: { node: GraphNode; graph: KnowledgeGraph }) {
   const navigateToNode = useDashboardStore((s) => s.navigateToNode);
   const { t } = useI18n();
@@ -325,11 +348,7 @@ export default function NodeInfo() {
         otherName: otherNode?.name ?? otherId,
       };
     })
-    .sort((a, b) =>
-      String(a.edge.type).localeCompare(String(b.edge.type)) ||
-      String(a.otherType).localeCompare(String(b.otherType)) ||
-      String(a.otherName).localeCompare(String(b.otherName)),
-    );
+    .sort(compareConnectionRowOrder);
   const connectionTypeCounts = countByValue(otherConnectionRows.map((row) => row.edge.type));
   const connectionNodeTypeCounts = countByValue(otherConnectionRows.map((row) => row.otherType));
   const displayedConnectionRows = showAllConnections ? otherConnectionRows : otherConnectionRows.slice(0, 40);
@@ -572,6 +591,11 @@ export default function NodeInfo() {
               return (
                 <div
                   key={`${row.edge.source}-${row.edge.target}-${row.edge.type}-${row.index}`}
+                  data-testid="node-info-connection-row"
+                  data-edge-type={row.edge.type}
+                  data-edge-weight={row.edge.weight}
+                  data-other-node-type={row.otherType}
+                  data-other-node-name={row.otherName}
                   className="text-xs bg-elevated rounded-lg px-3 py-2 border border-border-subtle cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-colors"
                   onClick={() => {
                     navigateToNode(row.otherId);
